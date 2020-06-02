@@ -1,0 +1,442 @@
+/*
+ * Copyright (c) 2019 MediaTek Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+
+#include "mt8168.dtsi"
+#include "mt6357.dtsi"
+
+/ {
+	extcon_usb: extcon_iddig {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&pio 39 GPIO_ACTIVE_HIGH>;
+	};
+
+	mmc_fixed_3v3: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "mmc_power";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	mmc_fixed_1v8_io: fixedregulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "mmc_io";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	mtcpufreq {
+		compatible = "mediatek,mt8168-cpufreq";
+	};
+
+	usb_p0_vbus: regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pio 40 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	usb_p1_vbus: regulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus1";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+	};
+};
+
+&chosen {
+	bootargs = "console=tty0 console=ttyS0,921600n1 earlycon=uart8250,mmio32,0x11002000 vmalloc=496M clk_ignore_unused pd_ignore_unused skip_initramfs rootwait ro init=/sbin/init root=PARTUUID=936e1662-2b63-435d-859d-1b9e5a838335";
+};
+
+&cpu0 {
+	proc-supply = <&mt_pmic_vproc_buck_reg>;
+	sram-supply = <&mt_pmic_vsram_proc_ldo_reg>;
+};
+
+&cpu1 {
+	proc-supply = <&mt_pmic_vproc_buck_reg>;
+	sram-supply = <&mt_pmic_vsram_proc_ldo_reg>;
+};
+
+&cpu2 {
+	proc-supply = <&mt_pmic_vproc_buck_reg>;
+	sram-supply = <&mt_pmic_vsram_proc_ldo_reg>;
+};
+
+&cpu3 {
+	proc-supply = <&mt_pmic_vproc_buck_reg>;
+	sram-supply = <&mt_pmic_vsram_proc_ldo_reg>;
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	clock-frequency = <100000>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+	clock-frequency = <100000>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+	clock-frequency = <100000>;
+	status = "okay";
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+	clock-frequency = <100000>;
+	status = "okay";
+};
+
+&keypad {
+	pinctrl-names = "default";
+	pinctrl-0 = <&kpd_pins_default>;
+	mediatek,kpd-key-debounce = <1024>;
+	mediatek,kpd-sw-pwrkey = <116>;
+	mediatek,kpd-hw-pwrkey = <1>;
+	mediatek,kpd-sw-rstkey  = <114>;
+	mediatek,kpd-hw-rstkey = <3>;
+	mediatek,kpd-use-extend-type = <0>;
+	/*HW Keycode [0~3] -> Linux Keycode*/
+	mediatek,kpd-hw-map-num = <72>;
+	mediatek,kpd-hw-init-map =
+			<115 0 0 0 0 0 0 0 0 0 0 0 0
+			 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+			 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+			 0 0 0 0 0 0 0 0 0 0 0 >;
+	mediatek,kpd-pwrkey-eint-gpio = <0>;
+	mediatek,kpd-pwkey-gpio-din  = <0>;
+	mediatek,kpd-hw-dl-key0 = <0>;
+	mediatek,kpd-hw-dl-key1 = <3>;
+	mediatek,kpd-hw-dl-key2 = <1>;
+	mediatek,kpd-hw-recovery-key = <0>;
+	mediatek,kpd-hw-factory-key  = <3>;
+	status = "okay";
+};
+
+&MCDI_CLUSTER {
+	status = "disabled";
+};
+
+&MCDI_CPU {
+	status = "disabled";
+};
+
+&mmc0 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&mmc0_pins_default>;
+	pinctrl-1 = <&mmc0_pins_uhs>;
+	bus-width = <8>;
+	max-frequency = <200000000>;
+	cap-mmc-highspeed;
+	vmmc-supply = <&mmc_fixed_3v3>;
+	vqmmc-supply = <&mmc_fixed_1v8_io>;
+	non-removable;
+	no-sd;
+	no-sdio;
+	status = "okay";
+};
+
+&mmc1 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&mmc1_pins_default>;
+	pinctrl-1 = <&mmc1_pins_uhs>;
+	bus-width = <4>;
+	max-frequency = <200000000>;
+	cap-sd-highspeed;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	cd-gpios = <&pio 107 GPIO_ACTIVE_LOW>;
+	vmmc-supply = <&mt_pmic_vmch_ldo_reg>;
+	vqmmc-supply = <&mt_pmic_vmc_ldo_reg>;
+	no-mmc;
+	no-sdio;
+	status = "okay";
+};
+
+&mt_pmic_vemc_ldo_reg {
+	regulator-max-microvolt = <3000000>;
+};
+
+&mt_pmic_vmc_ldo_reg {
+	regulator-max-microvolt = <3000000>;
+};
+
+&mt_pmic_vmch_ldo_reg {
+	regulator-max-microvolt = <3000000>;
+};
+
+&pio {
+	pinctrl-names = "default";
+
+	i2c0_pins: i2c0 {
+		pins_bus {
+			pinmux = <MT8168_PIN_57_SDA0__FUNC_SDA0_0>,
+				 <MT8168_PIN_58_SCL0__FUNC_SCL0_0>;
+			bias-disable;
+		};
+	};
+
+	i2c1_pins: i2c1 {
+		pins_bus {
+			pinmux = <MT8168_PIN_59_SDA1__FUNC_SDA1_0>,
+				 <MT8168_PIN_60_SCL1__FUNC_SCL1_0>;
+			bias-disable;
+		};
+	};
+
+	i2c2_pins: i2c2 {
+		pins_bus {
+			pinmux = <MT8168_PIN_61_SDA2__FUNC_SDA2_0>,
+				 <MT8168_PIN_62_SCL2__FUNC_SCL2_0>;
+			bias-disable;
+		};
+	};
+
+	i2c3_pins: i2c3 {
+		pins_bus {
+			pinmux = <MT8168_PIN_63_SDA3__FUNC_SDA3_0>,
+				 <MT8168_PIN_64_SCL3__FUNC_SCL3_0>;
+			bias-disable;
+		};
+	};
+
+	kpd_pins_default: kpddefault {
+		pins_cols {
+			pinmux = <MT8168_PIN_24_KPCOL0__FUNC_KPCOL0>,
+				 <MT8168_PIN_25_KPCOL1__FUNC_KPCOL1>;
+			input-enable;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+
+		pins_rows {
+			pinmux = <MT8168_PIN_22_KPROW0__FUNC_KPROW0>,
+				 <MT8168_PIN_23_KPROW1__FUNC_KPROW1>;
+			output-low;
+			bias-disable;
+		};
+	};
+
+	mmc0_pins_default: mmc0default {
+		pins_clk {
+			pinmux = <MT8168_PIN_99_MSDC0_CLK__FUNC_MSDC0_CLK>;
+			bias-pull-down;
+		};
+
+		pins_cmd_dat {
+			pinmux = <MT8168_PIN_103_MSDC0_DAT0__FUNC_MSDC0_DAT0>,
+				 <MT8168_PIN_102_MSDC0_DAT1__FUNC_MSDC0_DAT1>,
+				 <MT8168_PIN_101_MSDC0_DAT2__FUNC_MSDC0_DAT2>,
+				 <MT8168_PIN_100_MSDC0_DAT3__FUNC_MSDC0_DAT3>,
+				 <MT8168_PIN_96_MSDC0_DAT4__FUNC_MSDC0_DAT4>,
+				 <MT8168_PIN_95_MSDC0_DAT5__FUNC_MSDC0_DAT5>,
+				 <MT8168_PIN_94_MSDC0_DAT6__FUNC_MSDC0_DAT6>,
+				 <MT8168_PIN_93_MSDC0_DAT7__FUNC_MSDC0_DAT7>,
+				 <MT8168_PIN_98_MSDC0_CMD__FUNC_MSDC0_CMD>;
+			input-enable;
+			bias-pull-up;
+		};
+
+		pins_rst {
+			pinmux = <MT8168_PIN_97_MSDC0_RSTB__FUNC_MSDC0_RSTB>;
+			bias-pull-up;
+		};
+	};
+
+	mmc0_pins_uhs: mmc0 {
+		pins_clk {
+			pinmux = <MT8168_PIN_99_MSDC0_CLK__FUNC_MSDC0_CLK>;
+			drive-strength = <MTK_DRIVE_6mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_01>;
+		};
+
+		pins_cmd_dat {
+			pinmux = <MT8168_PIN_103_MSDC0_DAT0__FUNC_MSDC0_DAT0>,
+				 <MT8168_PIN_102_MSDC0_DAT1__FUNC_MSDC0_DAT1>,
+				 <MT8168_PIN_101_MSDC0_DAT2__FUNC_MSDC0_DAT2>,
+				 <MT8168_PIN_100_MSDC0_DAT3__FUNC_MSDC0_DAT3>,
+				 <MT8168_PIN_96_MSDC0_DAT4__FUNC_MSDC0_DAT4>,
+				 <MT8168_PIN_95_MSDC0_DAT5__FUNC_MSDC0_DAT5>,
+				 <MT8168_PIN_94_MSDC0_DAT6__FUNC_MSDC0_DAT6>,
+				 <MT8168_PIN_93_MSDC0_DAT7__FUNC_MSDC0_DAT7>,
+				 <MT8168_PIN_98_MSDC0_CMD__FUNC_MSDC0_CMD>;
+			input-enable;
+			drive-strength = <MTK_DRIVE_6mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+
+		pins_ds {
+			pinmux = <MT8168_PIN_104_MSDC0_DSL__FUNC_MSDC0_DSL>;
+			drive-strength = <MTK_DRIVE_6mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+
+		pins_rst {
+			pinmux = <MT8168_PIN_97_MSDC0_RSTB__FUNC_MSDC0_RSTB>;
+			bias-pull-up;
+		};
+	};
+
+	mmc1_pins_default: mmc1default {
+		pins_clk {
+			pinmux = <MT8168_PIN_88_MSDC1_CLK__FUNC_MSDC1_CLK>;
+			drive-strength = <MTK_DRIVE_4mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+
+		pins_cmd_dat {
+			pinmux = <MT8168_PIN_89_MSDC1_DAT0__FUNC_MSDC1_DAT0>,
+				 <MT8168_PIN_90_MSDC1_DAT1__FUNC_MSDC1_DAT1>,
+				 <MT8168_PIN_91_MSDC1_DAT2__FUNC_MSDC1_DAT2>,
+				 <MT8168_PIN_92_MSDC1_DAT3__FUNC_MSDC1_DAT3>,
+				 <MT8168_PIN_87_MSDC1_CMD__FUNC_MSDC1_CMD>;
+			input-enable;
+			drive-strength = <MTK_DRIVE_4mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+
+		pins_insert {
+			pinmux = <MT8168_PIN_107_NCEB0__FUNC_GPIO107>;
+			bias-pull-up;
+		};
+	};
+
+	mmc1_pins_uhs: mmc1 {
+		pins_clk {
+			pinmux = <MT8168_PIN_88_MSDC1_CLK__FUNC_MSDC1_CLK>;
+			drive-strength = <MTK_DRIVE_6mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+
+		pins_cmd_dat {
+			pinmux = <MT8168_PIN_89_MSDC1_DAT0__FUNC_MSDC1_DAT0>,
+				 <MT8168_PIN_90_MSDC1_DAT1__FUNC_MSDC1_DAT1>,
+				 <MT8168_PIN_91_MSDC1_DAT2__FUNC_MSDC1_DAT2>,
+				 <MT8168_PIN_92_MSDC1_DAT3__FUNC_MSDC1_DAT3>,
+				 <MT8168_PIN_87_MSDC1_CMD__FUNC_MSDC1_CMD>;
+			input-enable;
+			drive-strength = <MTK_DRIVE_6mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+	};
+
+	nand_pins_default: nanddefault {
+		pins_dat {
+			pinmux = <MT8168_PIN_93_MSDC0_DAT7__FUNC_NLD7>,
+				 <MT8168_PIN_94_MSDC0_DAT6__FUNC_NLD6>,
+				 <MT8168_PIN_101_MSDC0_DAT2__FUNC_NLD5>,
+				 <MT8168_PIN_95_MSDC0_DAT5__FUNC_NLD4>,
+				 <MT8168_PIN_96_MSDC0_DAT4__FUNC_NLD3>,
+				 <MT8168_PIN_103_MSDC0_DAT0__FUNC_NLD2>,
+				 <MT8168_PIN_100_MSDC0_DAT3__FUNC_NLD1>,
+				 <MT8168_PIN_97_MSDC0_RSTB__FUNC_NLD0>,
+				 <MT8168_PIN_102_MSDC0_DAT1__FUNC_NDQS>;
+			input-enable;
+			bias-pull-up;
+		};
+
+		pins_cmd {
+			pinmux = <MT8168_PIN_109_NRNB__FUNC_NRNB>,
+				 <MT8168_PIN_98_MSDC0_CMD__FUNC_NALE>,
+				 <MT8168_PIN_105_NCLE__FUNC_NCLE>,
+				 <MT8168_PIN_108_NREB__FUNC_NREB>,
+				 <MT8168_PIN_99_MSDC0_CLK__FUNC_NWEB>,
+				 <MT8168_PIN_106_NCEB1__FUNC_NCEB1>,
+				 <MT8168_PIN_107_NCEB0__FUNC_NCEB0>;
+			bias-pull-up;
+		};
+	};
+
+	usb_id_pins_float: usb_iddig_pull_up {
+		pins_iddig {
+			pinmux = <MT8168_PIN_39_URXD2__FUNC_IDDIG>;
+			bias-pull-up;
+		};
+	};
+
+	usb_id_pins_ground: usb_iddig_pull_down {
+		pins_iddig {
+			pinmux = <MT8168_PIN_39_URXD2__FUNC_IDDIG>;
+			bias-pull-down;
+		};
+	};
+};
+
+&reserved_memory {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	atf_reserved_memory {
+		reg = <0 0x43000000 0 0x30000>;
+	};
+
+	consys-reserve-memory {
+		compatible = "mediatek,consys-reserve-memory";
+		no-map;
+		size = <0 0x200000>;
+		alignment = <0 0x200000>;
+	};
+
+	mtee-reserved-memory {
+		compatible = "mediatek,mt8168-mtee-reserved-memory";
+		no-map;
+		reg = <0 0x5fc00000 0 0x400000>;
+	};
+};
+
+&ssusb {
+	vusb33-supply = <&mt_pmic_vusb33_ldo_reg>;
+	vbus-supply = <&usb_p0_vbus>;
+	extcon = <&extcon_usb>;
+	dr_mode = "peripheral";
+	pinctrl-names = "default", "id_float", "id_ground";
+	pinctrl-0 = <&usb_id_pins_float>;
+	pinctrl-1 = <&usb_id_pins_float>;
+	pinctrl-2 = <&usb_id_pins_ground>;
+	status="okay";
+};
+
+&svs_cpu_little {
+	vcpu_little-supply = <&mt_pmic_vproc_buck_reg>;
+};
+
+&u3phy0 {
+	status="okay";
+};
+
+&uart0 {
+	status="okay";
+};
+
+&usb_host0 {
+	vusb33-supply = <&mt_pmic_vusb33_ldo_reg>;
+	vbus-supply = <&usb_p1_vbus>;
+	status = "okay";
+};

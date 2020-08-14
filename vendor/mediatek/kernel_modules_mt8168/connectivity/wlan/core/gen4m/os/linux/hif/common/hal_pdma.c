@@ -501,8 +501,12 @@ u_int8_t halSetDriverOwn(IN struct ADAPTER *prAdapter)
 	}
 
 	KAL_REC_TIME_END();
-	DBGLOG_LIMITED(INIT, INFO,
-		"DRIVER OWN Done[%lu us]\n", KAL_GET_TIME_INTERVAL());
+	if (KAL_GET_TIME_INTERVAL() >= 4000) {
+		DBGLOG_LIMITED(INIT, INFO,
+			"DRIVER OWN Done[%lu us]\n", KAL_GET_TIME_INTERVAL());
+	} else
+		DBGLOG_LIMITED(INIT, TRACE,
+			"DRIVER OWN Done[%lu us]\n", KAL_GET_TIME_INTERVAL());
 
 	return fgStatus;
 }
@@ -541,11 +545,6 @@ void halSetFWOwn(IN struct ADAPTER *prAdapter, IN u_int8_t fgEnableGlobalInt)
 		return;
 	}
 
-	if (qmIsBubbleExist(prAdapter) == TRUE) {
-		DBGLOG(INIT, STATE, "Skip FW OWN due to bubble exist\n");
-		return;
-	}
-
 	if (fgEnableGlobalInt) {
 		prAdapter->fgIsIntEnableWithLPOwnSet = TRUE;
 	} else {
@@ -557,7 +556,7 @@ void halSetFWOwn(IN struct ADAPTER *prAdapter, IN u_int8_t fgEnableGlobalInt)
 
 		prAdapter->fgIsFwOwn = TRUE;
 
-		DBGLOG_LIMITED(INIT, INFO, "FW OWN:%u\n", fgResult);
+		DBGLOG_LIMITED(INIT, TRACE, "FW OWN:%u\n", fgResult);
 	}
 }
 

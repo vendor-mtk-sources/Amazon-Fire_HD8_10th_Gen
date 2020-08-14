@@ -38,7 +38,7 @@ enum FW_LOG_MODE {
 };
 
 #ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-static atomic_t log_mode  = ATOMIC_INIT(PRINT_TO_KERNEL_LOG);
+static atomic_t log_mode  = ATOMIC_INIT(LOG_TO_FILE);
 #else
 static atomic_t log_mode  = ATOMIC_INIT(PRINT_TO_KERNEL_LOG);
 #endif
@@ -1238,7 +1238,7 @@ void connsys_dedicated_log_dump_emi(int offset, int size)
 void connsys_dedicated_log_set_log_mode(int mode)
 {
 	// didn't need log to file
-	atomic_set(&log_mode, (PRINT_TO_KERNEL_LOG));
+	atomic_set(&log_mode, (mode > 0 ? LOG_TO_FILE : PRINT_TO_KERNEL_LOG));
 }
 
 /*****************************************************************************

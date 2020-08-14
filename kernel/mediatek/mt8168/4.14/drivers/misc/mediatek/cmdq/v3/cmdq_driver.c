@@ -496,6 +496,11 @@ static long cmdq_driver_process_command_request(
 	u32 *userRegValue = NULL;
 	u32 userRegCount = 0;
 
+	if (pCommand->regRequest.count > CMDQ_MAX_DUMP_REG_COUNT) {
+		CMDQ_ERR("invalid regRequest.count:%d\n", pCommand->regRequest.count);
+		return -EINVAL;
+	}
+
 	if (pCommand->regRequest.count != pCommand->regValue.count) {
 		CMDQ_ERR("mismatch regRequest and regValue\n");
 		return -EFAULT;
@@ -584,6 +589,20 @@ static long cmdq_driver_process_command_request(
 	return 0;
 }
 
+static long cmdq_verify_command(struct cmdqCommandStruct *command)
+{
+	if (command->blockSize < (2 * CMDQ_INST_SIZE) ||
+		(command->blockSize > CMDQ_MAX_COMMAND_SIZE) ||
+		command->blockSize % 8 != 0) {
+		/* for userspace command: must ends with EOC+JMP. */
+		CMDQ_ERR("Command block size invalid! size:%d\n",
+			command->blockSize);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 static s32 cmdq_driver_copy_handle_prop_from_user(void *from, u32 size,
 	void **to)
 {
@@ -631,6 +650,9 @@ static s32 cmdq_driver_ioctl_exec_command(struct file *pf, unsigned long param)
 
 	if (copy_from_user(&command, (void *)param,
 		sizeof(struct cmdqCommandStruct)))
+		return -EFAULT;
+
+	if (cmdq_verify_command(&command) != 0)
 		return -EFAULT;
 
 	if (command.regRequest.count > CMDQ_MAX_DUMP_REG_COUNT ||
@@ -696,6 +718,9 @@ static s32 cmdq_driver_ioctl_async_job_exec(struct file *pf,
 		CMDQ_ERR("copy job from user fail\n");
 		return -EFAULT;
 	}
+
+	if (cmdq_verify_command(&(job.command)) != 0)
+		return -EFAULT;
 
 	if (job.command.regRequest.count > CMDQ_MAX_DUMP_REG_COUNT ||
 		!job.command.blockSize ||
@@ -908,8 +933,16 @@ static s32 cmdq_driver_ioctl_alloc_write_address(unsigned long param)
 	s32 status;
 
 	if (copy_from_user(&addrReq, (void *)param, sizeof(addrReq))) {
-		CMDQ_ERR("%s copy_from_user failed\n", __func__);
+		CMDQ_ERR("ALLOC_WRITE_ADDRESS failed\n");
 		return -EFAULT;
+	}
+
+	if (!addrReq.count
+	    || addrReq.count > CMDQ_MAX_WRITE_ADDR_COUNT) {
+		CMDQ_ERR(
+			"Invalid alloc write addr count:%u\n",
+			addrReq.count);
+		return -EINVAL;
 	}
 
 	status = cmdqCoreAllocWriteAddress(addrReq.count, &paStart);

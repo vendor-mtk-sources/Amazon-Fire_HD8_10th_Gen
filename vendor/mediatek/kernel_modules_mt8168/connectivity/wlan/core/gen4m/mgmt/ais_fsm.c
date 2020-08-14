@@ -447,6 +447,8 @@ void aisFsmInit(IN struct ADAPTER *prAdapter)
 	kalMemZero(&prAisSpecificBssInfo->rBTMParam,
 		   sizeof(prAisSpecificBssInfo->rBTMParam));
 
+	prAisFsmInfo->fgNeedSkipDumpHifInfo = FALSE; /* fos_change_oneline*/
+
 	/* DBGPRINTF("[2] ucBmpDeliveryAC:0x%x,
 	 * ucBmpTriggerAC:0x%x, ucUapsdSp:0x%x",
 	 */
@@ -2447,7 +2449,7 @@ void aisFsmRunEventScanDone(IN struct ADAPTER *prAdapter,
 	eStatus = prScanDoneMsg->eScanStatus;
 	cnmMemFree(prAdapter, prMsgHdr);
 
-	DBGLOG(AIS, INFO, "ScanDone %u, status(%d) native req(%u)\n",
+	DBGLOG(AIS, LOUD, "ScanDone %u, status(%d) native req(%u)\n",
 	       ucSeqNumOfCompMsg, eStatus, prAisFsmInfo->u2SeqNumOfScanReport);
 
 	eNextState = prAisFsmInfo->eCurrentState;
@@ -2459,6 +2461,10 @@ void aisFsmRunEventScanDone(IN struct ADAPTER *prAdapter,
 		kalScanDone(prAdapter->prGlueInfo, KAL_NETWORK_TYPE_AIS_INDEX,
 			    (eStatus == SCAN_STATUS_DONE) ?
 			    WLAN_STATUS_SUCCESS : WLAN_STATUS_FAILURE);
+		/* fos_change_begin : If timer is running, it indicates this scan done is not abort_scan*/
+		if (timerPendingTimer(&prAisFsmInfo->rScanDoneTimer)) {
+			prAisFsmInfo->fgNeedSkipDumpHifInfo = FALSE;
+		} /* fos_change_end*/
 	}
 	if (ucSeqNumOfCompMsg != prAisFsmInfo->ucSeqNumOfScanReq) {
 		DBGLOG(AIS, WARN,
@@ -4411,8 +4417,12 @@ static void aisFsmRunEventScanDoneTimeOut(IN struct ADAPTER *prAdapter,
 	DBGLOG(AIS, STATE, "aisFsmRunEventScanDoneTimeOut Current[%d] Seq=%u\n",
 	       prAisFsmInfo->eCurrentState, prAisFsmInfo->ucSeqNumOfScanReq);
 
-	prAdapter->u4HifDbgFlag |= DEG_HIF_DEFAULT_DUMP;
-	kalSetHifDbgEvent(prAdapter->prGlueInfo);
+	/* fos_change_begin*/
+	if (prAisFsmInfo->fgNeedSkipDumpHifInfo == FALSE) {
+		prAisFsmInfo->fgNeedSkipDumpHifInfo = TRUE;
+		prAdapter->u4HifDbgFlag |= DEG_HIF_DEFAULT_DUMP;
+		kalSetHifDbgEvent(prAdapter->prGlueInfo);
+	} /* fos_change_end*/
 
 	/* try to stop scan in CONNSYS */
 	aisFsmStateAbort_SCAN(prAdapter);

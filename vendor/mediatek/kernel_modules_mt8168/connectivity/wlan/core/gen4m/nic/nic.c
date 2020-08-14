@@ -1409,7 +1409,7 @@ uint32_t nicActivateNetwork(IN struct ADAPTER *prAdapter,
 		   sizeof(rCmdActivateCtrl.ucReserved));
 
 #if 1				/* DBG */
-	DBGLOG_LIMITED(RSN, INFO,
+	DBGLOG_LIMITED(RSN, LOUD,
 	       "[wlan index]=%d OwnMac=" MACSTR " BSSID=" MACSTR
 	       " BMCIndex = %d NetType=%d\n",
 	       ucBssIndex,
@@ -1484,7 +1484,7 @@ uint32_t nicDeactivateNetwork(IN struct ADAPTER *prAdapter,
 	rCmdActivateCtrl.ucBMCWlanIndex =
 		prBssInfo->ucBMCWlanIndex;
 
-	DBGLOG_LIMITED(RSN, INFO,
+	DBGLOG_LIMITED(RSN, LOUD,
 	       "[wlan index]=%d OwnMac=" MACSTR " BSSID=" MACSTR
 	       " BMCIndex = %d NetType=%d\n",
 	       ucBssIndex,

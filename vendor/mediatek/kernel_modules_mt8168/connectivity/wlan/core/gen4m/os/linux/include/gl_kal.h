@@ -536,7 +536,6 @@ struct DRV_COMMON_WORK_T {
 	struct work_struct rWork;
 	struct QUE rWorkFuncQue;
 	spinlock_t rWorkFuncQueLock;
-	struct lock_class_key rLockKey;
 };
 
 /*******************************************************************************

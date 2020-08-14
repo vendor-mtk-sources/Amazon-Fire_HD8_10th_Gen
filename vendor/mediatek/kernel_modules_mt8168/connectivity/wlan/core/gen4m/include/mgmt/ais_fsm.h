@@ -287,6 +287,9 @@ struct AIS_FSM_INFO {
 	/* Scan target channel when device roaming */
 	uint8_t fgTargetChnlScanIssued;
 
+	/* fos_change begin: avoid dumpping hif dbg info all the time*/
+	u_int8_t fgNeedSkipDumpHifInfo;
+	/* fos_change end*/
 };
 
 struct AIS_OFF_CHNL_TX_REQ_INFO {

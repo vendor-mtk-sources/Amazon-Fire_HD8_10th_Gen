@@ -4719,16 +4719,14 @@ uint32_t wlanTxPendingPackets(IN struct ADAPTER *prAdapter,
 /*----------------------------------------------------------------------------*/
 uint32_t wlanAcquirePowerControl(IN struct ADAPTER *prAdapter)
 {
-	u_int8_t fgOriFwOwn;
 	ASSERT(prAdapter);
 
-	fgOriFwOwn = prAdapter->fgIsFwOwn;
 	/* DBGLOG(INIT, INFO, ("Acquire Power Ctrl\n")); */
 
 	ACQUIRE_POWER_CONTROL_FROM_PM(prAdapter);
 
 	/* Reset sleepy state */
-	if (fgOriFwOwn == TRUE)
+	if (prAdapter->fgWiFiInSleepyState == TRUE)
 		prAdapter->fgWiFiInSleepyState = FALSE;
 
 	return WLAN_STATUS_SUCCESS;
@@ -5329,12 +5327,16 @@ void wlanDumpBssStatistics(IN struct ADAPTER *prAdapter,
 
 	/* <2>Dump BSS statistics */
 	for (eAci = 0; eAci < WMM_AC_INDEX_NUM; eAci++) {
-		DBGLOG(SW4, INFO,
-		       "LLS BSS[%u] %s: T[%06u] R[%06u] T_D[%06u] T_F[%06u]\n",
-		       prBssInfo->ucBssIndex, apucACI2Str[eAci],
-		       arLLStats[eAci].u4TxMsdu,
-		       arLLStats[eAci].u4RxMsdu, arLLStats[eAci].u4TxDropMsdu,
-		       arLLStats[eAci].u4TxFailMsdu);
+		if (arLLStats[eAci].u4TxMsdu != 0 ||
+			arLLStats[eAci].u4RxMsdu != 0 ||
+			arLLStats[eAci].u4TxDropMsdu != 0 ||
+			arLLStats[eAci].u4TxFailMsdu != 0)
+			DBGLOG(SW4, INFO,
+			       "LLS BSS[%u] %s: T[%06u] R[%06u] T_D[%06u] T_F[%06u]\n",
+			       prBssInfo->ucBssIndex, apucACI2Str[eAci],
+			       arLLStats[eAci].u4TxMsdu,
+			       arLLStats[eAci].u4RxMsdu, arLLStats[eAci].u4TxDropMsdu,
+			       arLLStats[eAci].u4TxFailMsdu);
 	}
 }
 
@@ -9746,7 +9748,7 @@ wlanGetSpeIdx(IN struct ADAPTER *prAdapter,
 			ucRetValSpeIdx = wlanAntPathFavorSelect(prAdapter,
 				eWfPathFavor);
 	}
-	DBGLOG(INIT, INFO, "SpeIdx:%d,D:%d,G=%d,B=%d,Bss=%d\n",
+	DBGLOG(INIT, TRACE, "SpeIdx:%d,D:%d,G=%d,B=%d,Bss=%d\n",
 				ucRetValSpeIdx,
 				prAdapter->rWifiVar.fgDbDcModeEn,
 				prBssInfo->fgIsGranted, eBand, ucBssIndex);

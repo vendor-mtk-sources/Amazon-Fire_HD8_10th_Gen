@@ -1163,7 +1163,7 @@ long ion_mm_ioctl(struct ion_client *client, unsigned int cmd,
 	struct ion_mm_data param;
 	long ret = 0;
 	/* char dbgstr[256]; */
-	unsigned long ret_copy;
+	unsigned long ret_copy = 0;
 	unsigned int buffer_sec = 0;
 	enum ion_heap_type buffer_type = 0;
 	struct ion_buffer *buffer;
@@ -1174,6 +1174,8 @@ long ion_mm_ioctl(struct ion_client *client, unsigned int cmd,
 	else
 		ret_copy = copy_from_user(&param, (void __user *)arg,
 					  sizeof(struct ion_mm_data));
+	if (ret_copy)
+		return -EINVAL;
 
 	switch (param.mm_cmd) {
 	case ION_MM_CONFIG_BUFFER:
@@ -1421,6 +1423,9 @@ long ion_mm_ioctl(struct ion_client *client, unsigned int cmd,
 		ret_copy =
 		    copy_to_user((void __user *)arg, &param,
 				 sizeof(struct ion_mm_data));
+	if (ret_copy)
+		return -EINVAL;
+
 	return ret;
 }
 

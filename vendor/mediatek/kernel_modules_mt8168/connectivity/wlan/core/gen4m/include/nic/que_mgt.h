@@ -1172,9 +1172,6 @@ void qmHandleDelTspec(struct ADAPTER *prAdapter, struct STA_RECORD *prStaRec,
 		      enum ENUM_ACI eAci);
 void qmReleaseCHAtFinishedDhcp(struct ADAPTER *prAdapter,
 			       struct TIMER *prTimer);
-u_int8_t
-qmIsBubbleExist(IN struct ADAPTER *prAdapter);
-
 /*******************************************************************************
  *                              F U N C T I O N S
  *******************************************************************************

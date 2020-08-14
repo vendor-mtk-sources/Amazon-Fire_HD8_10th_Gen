@@ -446,12 +446,17 @@ static int scpsys_power_off(struct generic_pm_domain *genpd)
 	int ret, tmp;
 
 	ret = scpsys_bus_protect_enable(scpd);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(scp->dev, "Failed to bus_protect_enable %s\n",
+			genpd->name);
 		goto out;
+	}
 
 	ret = scpsys_sram_disable(scpd, ctl_addr);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(scp->dev, "Failed to sram_disable %s\n", genpd->name);
 		goto out;
+	}
 
 	ret = scpsys_clk_disable(scpd->subsys_clk, MAX_SUBSYS_CLKS);
 
@@ -475,8 +480,10 @@ static int scpsys_power_off(struct generic_pm_domain *genpd)
 	/* wait until PWR_ACK = 0 */
 	ret = readx_poll_timeout(scpsys_domain_is_on, scpd, tmp, tmp == 0,
 				 MTK_POLL_DELAY_US, MTK_POLL_TIMEOUT);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(scp->dev, "Failed to PWR_ACK %s\n", genpd->name);
 		goto out;
+	}
 
 	scpsys_clk_disable(scpd->clk, MAX_CLKS);
 

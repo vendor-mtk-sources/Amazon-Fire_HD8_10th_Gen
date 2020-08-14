@@ -25,6 +25,9 @@
 #include <linux/of_irq.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>
+#include "upmu_common.h"
+
+#define MTK_KP_WAKESOURCE
 
 #define KPD_NAME	"mtk-kpd"
 #ifndef CONFIG_KPD_VOLUME_KEY_SWAP
@@ -531,6 +534,8 @@ static int kpd_pdrv_suspend(struct platform_device *pdev, pm_message_t state)
 		kpd_wakeup_src_setting(0);
 		kpd_print("kpd_early_suspend wake up source disable!! (%d)\n",
 				kpd_suspend);
+		pmic_enable_interrupt(INT_HOMEKEY, 0, "PMIC");
+		pmic_enable_interrupt(INT_HOMEKEY_R, 0, "PMIC");
 	}
 #endif
 	kpd_print("suspend!! (%d)\n", kpd_suspend);
@@ -548,6 +553,8 @@ static int kpd_pdrv_resume(struct platform_device *pdev)
 		kpd_print("kpd_early_suspend wake up source resume!! (%d)\n",
 				kpd_suspend);
 		kpd_wakeup_src_setting(1);
+		pmic_enable_interrupt(INT_HOMEKEY, 1, "PMIC");
+		pmic_enable_interrupt(INT_HOMEKEY_R, 1, "PMIC");
 	}
 #endif
 	kpd_print("resume!! (%d)\n", kpd_suspend);

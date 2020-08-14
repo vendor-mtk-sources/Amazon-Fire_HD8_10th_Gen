@@ -159,8 +159,9 @@ static int EEPROM_get_cmd_info(
 	bool use_idme = false;
 
 	if (sensorID == GC2375HMIPI_CXT_REAR_SENSOR_ID ||
-		sensorID == GC2375HMIPI_CXT_FRONT_SENSOR_ID ||
-		sensorID == GC02M1MIPI_CXT_REAR_SENSOR_ID) {
+	    sensorID == GC2375HMIPI_CXT_FRONT_SENSOR_ID ||
+	    sensorID == GC02M1MIPI_CXT_REAR_SENSOR_ID ||
+	    sensorID == GC02M1MIPI_CXT_FRONT_SENSOR_ID) {
 		use_idme = true;
 	}
 
@@ -658,8 +659,9 @@ static long EEPROM_drv_ioctl(
 	}
 
 	if (ptempbuf->sensorID == GC2375HMIPI_CXT_REAR_SENSOR_ID ||
-		ptempbuf->sensorID == GC2375HMIPI_CXT_FRONT_SENSOR_ID ||
-		ptempbuf->sensorID == GC02M1MIPI_CXT_REAR_SENSOR_ID) {
+	    ptempbuf->sensorID == GC2375HMIPI_CXT_FRONT_SENSOR_ID ||
+	    ptempbuf->sensorID == GC02M1MIPI_CXT_REAR_SENSOR_ID ||
+	    ptempbuf->sensorID == GC02M1MIPI_CXT_FRONT_SENSOR_ID) {
 		use_idme = true;
 	}
 

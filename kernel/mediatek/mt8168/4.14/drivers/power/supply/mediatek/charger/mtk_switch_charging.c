@@ -162,9 +162,6 @@ static int adapter_power_detection(struct charger_manager *info)
 	if (det->iusb_ua)
 		goto skip;
 
-	if (chr_type != STANDARD_CHARGER)
-		return 0;
-
 	/* Step 1: Determine Type-C adapter by Rp */
 	rp_curr_ma = tcpm_inquire_typec_remote_rp_curr(info->tcpc);
 	if (rp_curr_ma == 3000) {
@@ -178,6 +175,9 @@ static int adapter_power_detection(struct charger_manager *info)
 		det->type = ADAPTER_7_5W;
 		goto done;
 	}
+
+	if (chr_type != STANDARD_CHARGER)
+		return 0;
 
 	/* Step 2: Run AICL for OCP detection on A2C adapter */
 	aicl_ua = adapter_power_detection_by_ocp(info);

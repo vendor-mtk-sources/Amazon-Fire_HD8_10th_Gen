@@ -892,6 +892,8 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 
 #if defined(ILI9881C_WXGA_DSI_VDO_ONYX)
 	&ili9881c_wxga_dsi_vdo_ili_tg_inx_onyx_lcm_drv,
+	&ili9881c_wxga_dsi_vdo_ili_kd_auo_onyx_lcm_drv,
+	&ili9881c_wxga_dsi_vdo_ili_kd_hsd_onyx_lcm_drv,
 #endif
 
 #if defined(JD936X_WXGA_DSI_VDO_PEREGRINE)

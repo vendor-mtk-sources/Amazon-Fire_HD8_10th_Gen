@@ -2331,6 +2331,7 @@ void wlanWakeLockUninit(struct GLUE_INFO *prGlueInfo)
  */
 /*----------------------------------------------------------------------------*/
 static struct lock_class_key rSpinKey[SPIN_LOCK_NUM];
+static struct lock_class_key rLockKey;
 static struct wireless_dev *wlanNetCreate(void *pvData,
 		void *pvDriverData)
 {
@@ -3852,6 +3853,7 @@ int32_t wlanOnWhenProbeSuccess(struct GLUE_INFO *prGlueInfo,
 	const u_int8_t bAtResetFlow)
 {
 	int32_t u4LogLevel = ENUM_WIFI_LOG_LEVEL_DEFAULT;
+	char *cmdBuffer = NULL;
 
 	DBGLOG(INIT, TRACE, "start.\n");
 
@@ -3859,6 +3861,21 @@ int32_t wlanOnWhenProbeSuccess(struct GLUE_INFO *prGlueInfo,
 		/* move before reading file
 		 * wlanLoadDefaultCustomerSetting(prAdapter);
 		 */
+	/* Enable WMM param configure for BE, this configuration is copied from abc123 */
+	cmdBuffer = kalMemAlloc(MAX_CMD_BUFFER_LENGTH, VIR_MEM_TYPE);
+	if (cmdBuffer) {
+		kalMemZero(cmdBuffer, MAX_CMD_BUFFER_LENGTH);
+		wlanCfgFwSetParam(cmdBuffer, "WmmParamCfgEn", "1", 0, 1);
+		wlanCfgFwSetParam(cmdBuffer, "WmmParamCwMax", "3", 1, 1);
+		wlanCfgFwSetParam(cmdBuffer, "WmmParamCwMin", "3", 2, 1);
+		wlanCfgFwSetParam(cmdBuffer, "WmmParamAifsN", "2", 3, 1);
+		wlanCfgSetGetFw(prAdapter, cmdBuffer, MAX_CMD_ITEM_MAX, CMD_TYPE_SET);
+		kalMemZero(cmdBuffer, MAX_CMD_BUFFER_LENGTH);
+		wlanCfgFwSetParam(cmdBuffer, "WmmParamTxOp", "520", 0, 1);
+		wlanCfgSetGetFw(prAdapter, cmdBuffer, 1, CMD_TYPE_SET);
+		DBGLOG(INIT, INFO, "Customize wmm parameters\n");
+		kalMemFree(cmdBuffer, VIR_MEM_TYPE, MAX_CMD_BUFFER_LENGTH);
+	}
 	wlanFeatureToFw(prGlueInfo->prAdapter);
 #endif
 
@@ -4078,6 +4095,9 @@ static int32_t wlanOnAtReset(void)
 	struct ADAPTER *prAdapter = NULL;
 	uint32_t rStatus = WLAN_STATUS_SUCCESS;
 	uint32_t u4BufLen = 0;
+	/* fos_change begin*/
+	struct GL_HIF_INFO *prHifInfo = NULL;
+	struct ERR_RECOVERY_CTRL_T *prErrRecoveryCtrl = NULL; /* fos_change end*/
 
 	enum ENUM_PROBE_FAIL_REASON {
 		BUS_INIT_FAIL,
@@ -4171,6 +4191,15 @@ static int32_t wlanOnAtReset(void)
 	if (rStatus == WLAN_STATUS_SUCCESS) {
 		wlanOnWhenProbeSuccess(prGlueInfo, prAdapter, TRUE);
 		DBGLOG(INIT, INFO, "reset success\n");
+
+		/* fos_change begin*/
+		prHifInfo = &prGlueInfo->rHifInfo;
+		prErrRecoveryCtrl = &prHifInfo->rErrRecoveryCtl;
+
+		DBGLOG(HAL, INFO, "Re-init recovery flag\n");
+		prHifInfo->fgIsErrRecovery = FALSE;
+		nicSerStartTxRx(prAdapter);
+		prErrRecoveryCtrl->eErrRecovState = ERR_RECOV_STOP_IDLE; /* fos_change end*/
 
 		/* Send disconnect */
 		if (prAdapter->prAisBssInfo->eConnectionState ==
@@ -4437,7 +4466,7 @@ static int32_t wlanProbe(void *pvData, void *pvDriverData)
 		INIT_WORK(&prGlueInfo->rDrvWork.rWork, wlanDrvCommonWork);
 		QUEUE_INITIALIZE(&prGlueInfo->rDrvWork.rWorkFuncQue);
 		spin_lock_init(&prGlueInfo->rDrvWork.rWorkFuncQueLock);
-		lockdep_set_class(&prGlueInfo->rDrvWork.rWorkFuncQueLock, &prGlueInfo->rDrvWork.rLockKey);
+		lockdep_set_class(&prGlueInfo->rDrvWork.rWorkFuncQueLock, &rLockKey);
 #if CFG_SUPPORT_WIFI_POWER_DEBUG
 		power_supply_reg_notifier(&wlan_psy_nb);
 #endif /* fos_change end */

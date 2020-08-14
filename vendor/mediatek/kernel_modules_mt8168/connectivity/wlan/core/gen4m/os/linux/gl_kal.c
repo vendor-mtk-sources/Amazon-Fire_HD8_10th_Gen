@@ -1560,7 +1560,7 @@ kalIndicateStatusAndComplete(IN struct GLUE_INFO
 		if (fgScanAborted == FALSE) {
 			kalScanLogCacheFlushBSS(prAdapter,
 				SCAN_LOG_MSG_MAX_LEN);
-			scanlog_dbg(LOG_SCAN_DONE_D2K, INFO, "Call cfg80211_scan_done (aborted=%u)\n",
+			scanlog_dbg(LOG_SCAN_DONE_D2K, LOUD, "Call cfg80211_scan_done (aborted=%u)\n",
 				fgScanAborted);
 		} else {
 			scanlog_dbg(LOG_SCAN_ABORT_DONE_D2K, INFO, "Call cfg80211_scan_done (aborted=%u)\n",
@@ -3561,13 +3561,10 @@ int hif_thread(void *data)
 				       &prGlueInfo->ulFlag))
 			halPrintHifDbgInfo(prGlueInfo->prAdapter);
 
-#if 0
 		/* Set FW own */
 		if (test_and_clear_bit(GLUE_FLAG_HIF_FW_OWN_BIT,
 				       &prGlueInfo->ulFlag))
 			prGlueInfo->prAdapter->fgWiFiInSleepyState = TRUE;
-#endif
-		clear_bit(GLUE_FLAG_HIF_FW_OWN_BIT, &prGlueInfo->ulFlag);
 
 		/* Release to FW own */
 		wlanReleasePowerControl(prGlueInfo->prAdapter);
@@ -6818,6 +6815,8 @@ inline int32_t kalPerMonEnable(IN struct GLUE_INFO
 inline int32_t kalPerMonStart(IN struct GLUE_INFO
 			      *prGlueInfo)
 {
+	/* Not used currently,mark it*/
+#if 0
 	struct PERF_MONITOR_T *prPerMonitor;
 	uint8_t	i =	0;
 
@@ -6853,6 +6852,7 @@ inline int32_t kalPerMonStart(IN struct GLUE_INFO
 		    prPerMonitor->ulPerfMonFlag);
 	KAL_CLR_BIT(PERF_MON_STOP_BIT, prPerMonitor->ulPerfMonFlag);
 	DBGLOG(SW4, INFO, "perf monitor started\n");
+#endif
 	return 0;
 }
 

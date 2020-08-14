@@ -2818,7 +2818,6 @@ static uint8_t rlmRecIeInfoForClient(struct ADAPTER *prAdapter,
 
 #if CFG_SUPPORT_DFS
 	/*DFS Certification for Channel Bandwidth 20MHz */
-	DBGLOG(RLM, INFO, "Ch : SwitchIE = %d\n", g_fgHasChannelSwitchIE);
 	if (g_fgHasChannelSwitchIE == TRUE) {
 		prBssInfo->eBssSCO = CHNL_EXT_SCN;
 		prBssInfo->ucVhtChannelWidth = CW_20_40MHZ;

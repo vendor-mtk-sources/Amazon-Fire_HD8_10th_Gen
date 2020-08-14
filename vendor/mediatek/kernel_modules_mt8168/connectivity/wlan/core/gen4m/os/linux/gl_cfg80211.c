@@ -908,8 +908,6 @@ int mtk_cfg80211_scan(struct wiphy *wiphy,
 	}
 #endif
 
-	kalScanReqLog(request);
-
 	/* check if there is any pending scan/sched_scan not yet finished */
 	if (prGlueInfo->prScanRequest != NULL) {
 		DBGLOG(REQ, ERROR, "prGlueInfo->prScanRequest != NULL\n");
@@ -1032,7 +1030,7 @@ int mtk_cfg80211_scan(struct wiphy *wiphy,
 
 #define TEMP_LOG_TEMPLATE "n_ssid=(%u->%u) n_channel(%u==>%u) " \
 	"wildcard=0x%X random_mac=" MACSTR "\n"
-	DBGLOG(REQ, INFO, TEMP_LOG_TEMPLATE,
+	DBGLOG(REQ, LOUD, TEMP_LOG_TEMPLATE,
 		request->n_ssids, num_ssid, request->n_channels,
 		prScanRequest->u4ChannelNum, wildcard_flag,
 		MAC2STR(prScanRequest->aucRandomMac));
@@ -4911,7 +4909,7 @@ int mtk_cfg80211_suspend(struct wiphy *wiphy,
 {
 	struct GLUE_INFO *prGlueInfo = NULL;
 
-	DBGLOG(REQ, INFO, "mtk_cfg80211_suspend\n");
+	DBGLOG(REQ, TRACE, "mtk_cfg80211_suspend\n");
 
 	if (kalHaltTryLock())
 		return 0;
@@ -4958,7 +4956,7 @@ int mtk_cfg80211_resume(struct wiphy *wiphy)
 	struct ADAPTER *prAdapter = NULL;
 	uint8_t i = 0;
 
-	DBGLOG(REQ, INFO, "mtk_cfg80211_resume\n");
+	DBGLOG(REQ, TRACE, "mtk_cfg80211_resume\n");
 
 	if (kalHaltTryLock())
 		return 0;
@@ -4987,7 +4985,7 @@ int mtk_cfg80211_resume(struct wiphy *wiphy)
 				   pprBssDesc[i]->ucChannelNum,
 				   RCPI_TO_dBm(pprBssDesc[i]->ucRCPI));
 	}
-	DBGLOG(SCN, INFO, "pending %d sched scan results\n", i);
+	DBGLOG(SCN, TRACE, "pending %d sched scan results\n", i);
 	if (i > 0)
 		kalMemZero(&pprBssDesc[0], i * sizeof(struct BSS_DESC *));
 

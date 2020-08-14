@@ -1490,7 +1490,8 @@ uint32_t wlanCfgSetCb(IN struct ADAPTER *prAdapter, const int8_t *pucKey,
 		      uint32_t u4Flags);
 
 #if CFG_SUPPORT_EASY_DEBUG
-
+void wlanCfgFwSetParam(uint8_t *fwBuffer, char *cmdStr, char *value, int num, int type);
+uint32_t wlanCfgSetGetFw(IN struct ADAPTER *prAdapter, const char *fwBuffer, int cmdNum, enum CMD_TYPE cmdType);
 uint32_t wlanCfgParse(IN struct ADAPTER *prAdapter, uint8_t *pucConfigBuf,
 		      uint32_t u4ConfigBufLen, u_int8_t isFwConfig);
 void wlanFeatureToFw(IN struct ADAPTER *prAdapter);

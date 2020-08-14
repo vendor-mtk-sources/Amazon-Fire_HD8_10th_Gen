@@ -280,6 +280,7 @@
 #define GC2375HMIPI_CXT_FRONT_SENSOR_ID         0x2376
 #define GC2375HMIPI_CXT_VC_SENSOR_ID            0x2377
 #define GC02M1MIPI_CXT_REAR_SENSOR_ID           0x02e0
+#define GC02M1MIPI_CXT_FRONT_SENSOR_ID          0x02e1
 #define GC2365_SENSOR_ID                        0x2365
 #define GC2366_SENSOR_ID                        0x2366
 #define GC2355_SENSOR_ID                        0x2355
@@ -464,6 +465,7 @@
 #define SENSOR_DRVNAME_GC2375HMIPI_RAW_CXT_FRONT       "gc2375hmipi_raw_cxt_front"
 #define SENSOR_DRVNAME_GC2375HMIPI_RAW_CXT_VC          "gc2375hmipi_raw_cxt_vc"
 #define SENSOR_DRVNAME_GC02M1MIPI_RAW_CXT_REAR  "gc02m1mipi_raw_cxt_rear"
+#define SENSOR_DRVNAME_GC02M1MIPI_RAW_CXT_FRONT "gc02m1mipi_raw_cxt_front"
 #define SENSOR_DRVNAME_GC2365_MIPI_RAW          "gc2365_mipi_raw"
 #define SENSOR_DRVNAME_GC2366_MIPI_RAW          "gc2366_mipi_raw"
 #define SENSOR_DRVNAME_GC2035_YUV               "gc2035_yuv"

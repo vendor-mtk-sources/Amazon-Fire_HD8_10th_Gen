@@ -475,7 +475,7 @@ void scanSetRequestChannel(IN struct ADAPTER *prAdapter,
 		}
 	}
 
-	log_dbg(SCN, INFO,
+	log_dbg(SCN, LOUD,
 		"channel num(%u=>%u) %08X %08X %08X %08X %08X %08X %08X %08X\n",
 		u4ScanChannelNum, prScanReqMsg->ucChannelListNum,
 		au4ChannelBitMap[7], au4ChannelBitMap[6],
@@ -2366,6 +2366,9 @@ void scanLogEssResult(struct ADAPTER *prAdapter)
 	int slen = 0;
 	u_int8_t first = TRUE;
 
+	if (((aucDebugModule[DBG_SCN_IDX] & DBG_CLASS_LOUD) == 0))
+		return;
+
 	if (u4ResultNum == 0) {
 		scanlog_dbg(LOG_SCAN_DONE_D2K, INFO, "0 Bss is found, %d, %d, %d, %d\n",
 			prAdapter->rWlanInfo.u4ScanDbgTimes1,
@@ -2374,7 +2377,6 @@ void scanLogEssResult(struct ADAPTER *prAdapter)
 			prAdapter->rWlanInfo.u4ScanDbgTimes4);
 		return;
 	}
-
 	for (u4Index = 0; u4Index < u4ResultNum; u4Index++) {
 		if (prEssResult[u4Index].u2SSIDLen > 0)
 			slen += prEssResult[u4Index].u2SSIDLen + 2; /* _ssid;*/
@@ -2396,12 +2398,12 @@ void scanLogEssResult(struct ADAPTER *prAdapter)
 		if (pos + len + 3 > end) { /* _ssid;nul */
 			pos = strbuf;
 			if (first) {
-				scanlog_dbg(LOG_SCAN_DONE_D2K, INFO,
+				scanlog_dbg(LOG_SCAN_DONE_D2K, LOUD,
 					"Total:%u/%u", u4ResultNum,
 					prAdapter->rWlanInfo.u4ScanResultNum);
 				first = FALSE;
 			}
-			DBGLOG_SSID(SCN, INFO, strbuf, slen);
+			DBGLOG_SSID(SCN, LOUD, strbuf, slen);
 		}
 		kalStrnCpy(ssid, prEssResult[u4Index].aucSSID, sizeof(ssid));
 		ssid[sizeof(ssid) - 1] = '\0';
@@ -2409,10 +2411,10 @@ void scanLogEssResult(struct ADAPTER *prAdapter)
 	}
 	if (pos != strbuf) {
 		if (first)
-			scanlog_dbg(LOG_SCAN_DONE_D2K, INFO,
+			scanlog_dbg(LOG_SCAN_DONE_D2K, LOUD,
 				"Total:%u/%u", u4ResultNum,
 				prAdapter->rWlanInfo.u4ScanResultNum);
-		DBGLOG_SSID(SCN, INFO, strbuf, slen);
+		DBGLOG_SSID(SCN, LOUD, strbuf, slen);
 
 	}
 	kalMemFree(strbuf, VIR_MEM_TYPE, slen);
@@ -3850,19 +3852,18 @@ void scanReqLog(struct CMD_SCAN_REQ_V2 *prCmdScanReq)
 	int i, j;
 	int snum[2] = {req->ucSSIDNum, req->ucSSIDExtNum};
 	struct PARAM_SSID *slist[2] = {req->arSSID, req->arSSIDExtend};
-	int cnum[2] = {req->ucChannelListNum, req->ucChannelListExtNum};
-	struct CHANNEL_INFO *clist[2] =	{
-		req->arChannelList, req->arChannelListExtend};
 
 	/* ssid and space */
 	for (i = 0; i < 2; ++i)
 		for (j = 0; j < snum[i]; ++j)
 			slen += slist[i][j].u4SsidLen + 1;
 
+	if (slen == 0)
+		return;
+
 	/* The length should be added 6 + 10 + 4 + 8 + 1 for the format
 	 * ",Ssid:", * ",Ext ssid:", ",Ch:", ",Ext Ch:" and null byte.
 	 */
-	slen += 29 + 4 * (req->ucChannelListNum + req->ucChannelListExtNum);
 	pos = strbuf = kalMemAlloc(slen, VIR_MEM_TYPE);
 	if (strbuf == NULL) {
 		scanlog_dbg(LOG_SCAN_REQ_K2D, INFO, "Can't allocate memory\n");
@@ -3885,15 +3886,6 @@ void scanReqLog(struct CMD_SCAN_REQ_V2 *prCmdScanReq)
 		}
 	}
 
-	for (i = 0; i < 2; ++i) {
-		if (cnum[i] > 0) {
-			pos += kalSnprintf(pos, end - pos, "%s",
-				i == 0 ? ",Ch:" : ",Ext Ch:");
-			for (j = 0; j < cnum[i]; ++j)
-				pos += kalSnprintf(pos, end - pos, " %u",
-					clist[i][j].ucChannelNum % 1000);
-		}
-	}
 #define TEMP_LOG_TEMPLATE \
 	"ScanReqV2: ScanType=%d,BSS=%u,SSIDType=%d,Num=%u,Ext=%u," \
 	"ChannelType=%d,Num=%d,Ext=%u,Seq=%u,Ver=%u,Dw=%u,Min=%u," \
@@ -3992,6 +3984,11 @@ void scanLogCacheFlushBSS(struct LINK *prList, enum ENUM_SCAN_LOG_PREFIX prefix,
 	if (LINK_IS_EMPTY(prList))
 		return;
 
+	if (((aucDebugModule[DBG_SCN_IDX] & DBG_CLASS_LOUD) == 0)) {
+		LINK_INITIALIZE(prList);
+		return;
+	}
+
 	/* The maximum characters of uint32_t could be 10. Thus, the
 	 * mininum size should be 10+3 for the format "%u: ".
 	 */
@@ -4009,7 +4006,7 @@ void scanLogCacheFlushBSS(struct LINK *prList, enum ENUM_SCAN_LOG_PREFIX prefix,
 		if (idx+dataLen+1 > logBufLen) {
 			logBuf[idx] = 0; /* terminating null byte */
 			if (prefix != LOG_SCAN_D2D)
-				scanlog_dbg(prefix, INFO, "%s\n", logBuf);
+				scanlog_dbg(prefix, LOUD, "%s\n", logBuf);
 			idx = 0;
 		}
 
@@ -4040,7 +4037,7 @@ void scanLogCacheFlushBSS(struct LINK *prList, enum ENUM_SCAN_LOG_PREFIX prefix,
 	if (idx != 0) {
 		logBuf[idx] = 0; /* terminating null byte */
 		if (prefix != LOG_SCAN_D2D)
-			scanlog_dbg(prefix, INFO, "%s\n", logBuf);
+			scanlog_dbg(prefix, LOUD, "%s\n", logBuf);
 		idx = 0;
 	}
 }

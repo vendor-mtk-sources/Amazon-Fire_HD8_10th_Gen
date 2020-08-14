@@ -4150,8 +4150,6 @@ void qmHandleReorderBubbleTimeout(IN struct ADAPTER *prAdapter,
 		prReorderQueParm->u2FirstBubbleSn);
 
 	qmHandleEventCheckReorderBubble(prAdapter, prReorderQueParm);
-
-	kalSetFwOwnEvent2Hif(prAdapter->prGlueInfo);
 }
 
 void qmHandleEventCheckReorderBubble(IN struct ADAPTER *prAdapter,
@@ -5018,8 +5016,27 @@ void mqmProcessAssocRsp(IN struct ADAPTER *prAdapter,
 		DBGLOG(QM, TRACE,
 			"MQM: Assoc_Rsp Parsing (QoS Enabled=%d)\n",
 			prStaRec->fgIsQoS);
-		if (prStaRec->fgIsWmmSupported)
+		if (prStaRec->fgIsWmmSupported) {
+#if CFG_SUPPORT_EASY_DEBUG
+			char aucValueBuf[8] = {0};
+			struct BSS_INFO *prBssInfo = GET_BSS_INFO_BY_INDEX(prAdapter, prStaRec->ucBssIndex);
+			struct AC_QUE_PARMS *prVoParam = prBssInfo ? &prBssInfo->arACQueParms[WMM_AC_VO_INDEX] : NULL;
+
+			/* Follow AIFSN value of VO for BE. Since the default value of AIFSN is 2,
+			** if AIFSN value of VO is also 2, no need to customize this value again
+			** The unit of AIFSN is slot.
+			*/
+			if (prVoParam && prVoParam->u2Aifsn != 2) {
+				uint8_t aucFwBuffer[sizeof(struct CMD_FORMAT_V1)] = {0};
+
+				kalSnprintf(aucValueBuf, sizeof(aucValueBuf), "%d", prVoParam->u2Aifsn);
+				wlanCfgFwSetParam(aucFwBuffer, "WmmParamAifsN", aucValueBuf, 0, 1);
+				wlanCfgSetGetFw(prAdapter, aucFwBuffer, 1, CMD_TYPE_SET);
+				DBGLOG(QM, INFO, "Set WMM BE param by cfg\n");
+			}
+#endif
 			nicQmUpdateWmmParms(prAdapter, prStaRec->ucBssIndex);
+		}
 	}
 }
 
@@ -7951,19 +7968,4 @@ void qmReleaseCHAtFinishedDhcp(struct ADAPTER *prAdapter,
 		aisFsmSteps(prAdapter, AIS_STATE_REQ_REMAIN_ON_CHANNEL);
 	else
 		DBGLOG(QM, INFO, "No pending request\n");
-}
-
-u_int8_t
-qmIsBubbleExist(IN struct ADAPTER *prAdapter)
-{
-	uint32_t u4Idx;
-	struct QUE_MGT *prQM = &prAdapter->rQM;
-
-	for (u4Idx = 0; u4Idx < CFG_NUM_OF_RX_BA_AGREEMENTS; u4Idx++) {
-		if (prQM->arRxBaTable[u4Idx].fgIsValid == TRUE) {
-			if (prQM->arRxBaTable[u4Idx].fgHasBubble == TRUE)
-				return TRUE;
-		}
-	}
-	return FALSE;
 }

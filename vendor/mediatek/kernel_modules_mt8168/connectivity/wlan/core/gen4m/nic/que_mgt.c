@@ -7969,3 +7969,165 @@ void qmReleaseCHAtFinishedDhcp(struct ADAPTER *prAdapter,
 	else
 		DBGLOG(QM, INFO, "No pending request\n");
 }
+
+#if CFG_SUPPORT_BA_OFFLOAD
+void qmHandleBaOffloadBarFrame(IN struct ADAPTER *prAdapter,
+	IN uint8_t ucStaRecIdx, IN uint8_t ucTid, IN uint32_t u4SSN)
+{
+
+	struct STA_RECORD *prStaRec;
+	struct RX_BA_ENTRY *prReorderQueParm;
+	struct QUE rReturnedQue;
+	struct QUE *prReturnedQue = &rReturnedQue;
+	struct QUE *prReorderQue;
+	uint32_t u4WinStart;
+	uint32_t u4WinEnd;
+
+	DBGLOG(QM, TRACE, "[BAOFD]Receive BAR sta %d tid %d SSN %d!!\n",
+		ucStaRecIdx, ucTid, u4SSN);
+
+	QUEUE_INITIALIZE(prReturnedQue);
+
+	/* Check whether the STA_REC is activated */
+	prStaRec = cnmGetStaRecByIndex(prAdapter, ucStaRecIdx);
+	if (prStaRec == NULL) {
+		return;
+	}
+
+	/* Check whether the BA agreement exists */
+	prReorderQueParm = prStaRec->aprRxReorderParamRefTbl[ucTid];
+	if (!prReorderQueParm) {
+		DBGLOG(QM, WARN, "[BAOFD]BAR for a NULL ReorderQueParm!!\n");
+		return;
+	}
+
+	prReorderQue = &(prReorderQueParm->rReOrderQue);
+	u4WinStart = (uint32_t) (prReorderQueParm->u2WinStart);
+	u4WinEnd = (uint32_t) (prReorderQueParm->u2WinEnd);
+
+	if (qmCompareSnIsLessThan(u4WinStart, u4SSN)) {
+		prReorderQueParm->u2WinStart = (uint16_t) u4SSN;
+		prReorderQueParm->u2WinEnd =
+			((prReorderQueParm->u2WinStart) +
+			(prReorderQueParm->u2WinSize) - 1) % MAX_SEQ_NO_COUNT;
+#if CFG_SUPPORT_RX_AMSDU
+		/* RX reorder for one MSDU in AMSDU issue */
+		prReorderQueParm->u8LastAmsduSubIdx = RX_PAYLOAD_FORMAT_MSDU;
+#endif
+		DBGLOG(QM, TRACE,
+			"[BAOFD]Advance Case OldStart %d OldEnd %d WinStart %d WinEnd %d\n",
+			u4WinStart, u4WinEnd,
+			prReorderQueParm->u2WinStart,
+			prReorderQueParm->u2WinEnd);
+		qmPopOutDueToFallAhead(prAdapter, prReorderQueParm,
+			prReturnedQue);
+	} else {
+		DBGLOG(QM, TRACE,
+			"[BAOFD]No-Pop Case tid %d SSN %d WinStart %d WinEnd %d\n",
+			ucTid, u4SSN, u4WinStart, u4WinEnd);
+	}
+
+	if (QUEUE_IS_NOT_EMPTY(prReturnedQue)) {
+		DBGLOG(QM, TRACE, "[BAOFD]Need to Pop out packet\n");
+		QM_TX_SET_NEXT_MSDU_INFO(
+			(struct SW_RFB *) QUEUE_GET_TAIL(
+			prReturnedQue), NULL);
+		wlanProcessQueuedSwRfb(prAdapter,
+			(struct SW_RFB *)
+			QUEUE_GET_HEAD(prReturnedQue));
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+ * \brief Handle BAR/ADDBA/DELBA event
+ *
+ * \param[in] prAdapter Adapter pointer
+ * \param[in] prEvent The event packet from the FW
+ *
+ * \return (none)
+ */
+/*----------------------------------------------------------------------------*/
+void qmHandleEventBaOffloadIndication(IN struct ADAPTER *prAdapter,
+	IN struct WIFI_EVENT *prEvent)
+{
+	struct EVENT_BAOFFLOAD_INDICATE *prEventBaOffloadIndicate;
+	struct BAOFFLOAD_INDICATE_INFO sBaOffloadInfo;
+	struct STA_RECORD *prStaRec;
+	uint8_t ucStaRecIdx;
+	uint8_t i;
+
+	ASSERT(prAdapter);
+
+	kalMemZero(&sBaOffloadInfo, sizeof(struct BAOFFLOAD_INDICATE_INFO));
+
+	prEventBaOffloadIndicate =
+		(struct EVENT_BAOFFLOAD_INDICATE *)(prEvent->aucBuffer);
+
+	DBGLOG(QM, TRACE,
+		"[BAOFD]Receive BAR/ADDBA/DELBA Event count %d!!\n",
+		prEventBaOffloadIndicate->ucEventCnt);
+
+	for (i = 0; i < prEventBaOffloadIndicate->ucEventCnt; i++) {
+		kalMemCopy(&sBaOffloadInfo,
+			&prEventBaOffloadIndicate->sBaOffloadIndicateInfo[i],
+			sizeof(struct BAOFFLOAD_INDICATE_INFO));
+
+		ucStaRecIdx = sBaOffloadInfo.ucStaRecIdx;
+		prStaRec = QM_GET_STA_REC_PTR_FROM_INDEX(prAdapter, ucStaRecIdx);
+		if (!prStaRec) {
+			DBGLOG(QM, WARN, "[BAOFD]NULL STA_REC!!\n");
+			continue;
+		}
+
+		if (sBaOffloadInfo.ucTid >= CFG_RX_MAX_BA_TID_NUM) {
+			DBGLOG(QM, WARN, "[BAOFD]Invalid TID %d!!\n",
+				sBaOffloadInfo.ucTid);
+			continue;
+		}
+
+		switch (sBaOffloadInfo.eBaOffloadIndicateType) {
+		case BAOFFLOAD_INDICATE_BAR:
+			DBGLOG(QM, TRACE, "[BAOFD]Handle BAR %d %d %d!!\n",
+				ucStaRecIdx,
+				sBaOffloadInfo.ucTid,
+				sBaOffloadInfo.u4SSN);
+			qmHandleBaOffloadBarFrame(prAdapter,
+				ucStaRecIdx,
+				sBaOffloadInfo.ucTid,
+				sBaOffloadInfo.u4SSN);
+			break;
+
+		case BAOFFLOAD_INDICATE_ADDBA:
+			DBGLOG(QM, TRACE, "[BAOFD]Handle ADDBA %d %d %d %d!!\n",
+				ucStaRecIdx,
+				sBaOffloadInfo.ucTid,
+				sBaOffloadInfo.u4SSN,
+				sBaOffloadInfo.u4WinSize);
+			if (qmAddRxBaEntry(prAdapter,
+				ucStaRecIdx,
+				sBaOffloadInfo.ucTid,
+				sBaOffloadInfo.u4SSN,
+				(uint16_t)sBaOffloadInfo.u4WinSize) != TRUE) {
+				DBGLOG(QM, WARN,
+					   "QM: (Warning) Process ADDBA fail\n");
+			}
+			break;
+
+		case BAOFFLOAD_INDICATE_DELBA:
+			DBGLOG(QM, TRACE, "[BAOFD]Handle DELBA %d %d!!\n",
+				ucStaRecIdx,
+				sBaOffloadInfo.ucTid);
+			qmDelRxBaEntry(prAdapter,
+				ucStaRecIdx,
+				sBaOffloadInfo.ucTid,
+				TRUE);
+			break;
+
+		default:
+			DBGLOG(QM, WARN, "[BAOFD]Should Not Enter Here!!\n");
+			break;
+		}
+	}
+}
+#endif

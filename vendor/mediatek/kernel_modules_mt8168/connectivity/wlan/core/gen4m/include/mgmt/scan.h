@@ -590,6 +590,11 @@ struct SCAN_INFO {
 
 	/* Scan log cache */
 	struct SCAN_LOG_CACHE rScanLogCache;
+
+	/*record time when begin scan*/
+	OS_SYSTIME u4ScanStartTime;
+	/*record total scan time duration */
+	OS_SYSTIME u4TotalScanTime;
 };
 
 /* Incoming Mailbox Messages */

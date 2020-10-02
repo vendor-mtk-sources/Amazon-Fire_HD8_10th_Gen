@@ -192,7 +192,10 @@ static struct RX_EVENT_HANDLER arEventTable[] = {
 	{EVENT_ID_TX_ADDBA, qmHandleEventTxAddBa, (sizeof(struct EVENT_TX_ADDBA))},
 	{EVENT_ID_TX_ADDBA_REQ, qmHandleEventTxAddBaReq, (sizeof(struct EVENT_TX_ADDBA_REQ))},
 	{EVENT_ID_GET_CNM, nicEventCnmInfo, 0},
-	{EVENT_ID_OPMODE_CHANGE, cnmEventOpmodeChange, (sizeof(struct EVENT_OPMODE_CHANGE))}
+	{EVENT_ID_OPMODE_CHANGE, cnmEventOpmodeChange, (sizeof(struct EVENT_OPMODE_CHANGE))},
+#if CFG_SUPPORT_BA_OFFLOAD
+	{EVENT_ID_BAOFFLOAD_INDICATION, qmHandleEventBaOffloadIndication, (sizeof(struct EVENT_BAOFFLOAD_INDICATE))}
+#endif
 };
 
 /*******************************************************************************
@@ -3730,6 +3733,32 @@ static void nicRxCheckWakeupReason(struct ADAPTER *prAdapter,
 }
 #endif
 
+u_int8_t nicRxIsNeedCheckNextRFB(IN struct ADAPTER *prAdapter,
+	IN struct SW_RFB *prSwRfb)
+{
+	struct mt66xx_chip_info *prChipInfo;
+	struct WIFI_EVENT *prEvent;
+
+	ASSERT(prAdapter);
+	ASSERT(prSwRfb);
+	prChipInfo = prAdapter->chip_info;
+
+	if (prSwRfb->ucPacketType == RX_PKT_TYPE_SW_DEFINED) {
+		if ((prSwRfb->prRxStatus->u2PktTYpe &
+					     RXM_RXD_PKT_TYPE_SW_BITMAP) ==
+					    RXM_RXD_PKT_TYPE_SW_EVENT) {
+			prEvent = (struct WIFI_EVENT *)
+					(prSwRfb->pucRecvBuff + prChipInfo->rxd_size);
+			if (prEvent->ucEID == EVENT_ID_BAOFFLOAD_INDICATION) {
+				DBGLOG(RX, TRACE,
+					"Need to check next RFB!\n");
+				return TRUE;
+			}
+		}
+	}
+
+	return FALSE;
+}
 /*----------------------------------------------------------------------------*/
 /*!
  * @brief nicProcessRFBs is used to process RFBs in the rReceivedRFBList queue.
@@ -3788,9 +3817,14 @@ void nicRxProcessRFBs(IN struct ADAPTER *prAdapter)
 					glLogSuspendResumeTime(FALSE);
 					glNotifyAppTxRx(prAdapter->prGlueInfo, NULL);
 				}
-				if (kalIsWakeupByWlan(prAdapter))
-					nicRxCheckWakeupReason(prAdapter,
-							       prSwRfb);
+
+				if (test_bit(SUSPEND_FLAG_FOR_WAKEUP_REASON,
+						&prAdapter->ulSuspendFlag) &&
+					(nicRxIsNeedCheckNextRFB(prAdapter, prSwRfb) == FALSE)) {
+					if (kalIsWakeupByWlan(prAdapter)) {
+						nicRxCheckWakeupReason(prAdapter, prSwRfb);
+					}
+				}
 #endif
 
 				switch (prSwRfb->ucPacketType) {

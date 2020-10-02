@@ -727,6 +727,31 @@ enum ENUM_BA_ENTRY_STATUS {
 };
 #endif
 
+#if CFG_SUPPORT_BA_OFFLOAD
+enum ENUM_BAOFFLOAD_INDICATE_TYPE
+{
+	BAOFFLOAD_INDICATE_BAR = 0,
+	BAOFFLOAD_INDICATE_ADDBA,
+	BAOFFLOAD_INDICATE_DELBA,
+	BAOFFLOAD_INDICATE_NUM
+};
+
+struct BAOFFLOAD_INDICATE_INFO
+{
+	enum ENUM_BAOFFLOAD_INDICATE_TYPE eBaOffloadIndicateType;
+	uint32_t u4WinSize;
+	uint32_t ucTid;
+	uint16_t u4SSN;
+	uint8_t ucStaRecIdx;
+};
+
+struct EVENT_BAOFFLOAD_INDICATE
+{
+	struct BAOFFLOAD_INDICATE_INFO sBaOffloadIndicateInfo[CFG_RX_MAX_BA_TID_NUM];
+	uint8_t ucEventCnt;
+};
+#endif
+
 /*******************************************************************************
  *                            P U B L I C   D A T A
  *******************************************************************************
@@ -1172,6 +1197,11 @@ void qmHandleDelTspec(struct ADAPTER *prAdapter, struct STA_RECORD *prStaRec,
 		      enum ENUM_ACI eAci);
 void qmReleaseCHAtFinishedDhcp(struct ADAPTER *prAdapter,
 			       struct TIMER *prTimer);
+#if CFG_SUPPORT_BA_OFFLOAD
+void qmHandleEventBaOffloadIndication(IN struct ADAPTER *prAdapter,
+	IN struct WIFI_EVENT *prEvent);
+#endif
+
 /*******************************************************************************
  *                              F U N C T I O N S
  *******************************************************************************

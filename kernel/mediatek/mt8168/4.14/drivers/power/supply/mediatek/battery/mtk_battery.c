@@ -4106,6 +4106,9 @@ static int battery_suspend(struct platform_device *dev, pm_message_t state)
 		if (gm.hw_status.iavg_lt > 0)
 			pmic_enable_interrupt(FG_IAVG_L_NO, 0, "GM30");
 	}
+
+	bat_metrics_suspend();
+
 	return 0;
 }
 
@@ -4128,6 +4131,7 @@ static int battery_resume(struct platform_device *dev)
 	/* reset nafg monitor time to avoid suspend for too long case */
 	get_monotonic_boottime(&gm.last_nafg_update_time);
 
+	bat_metrics_resume();
 	fg_update_sw_iavg();
 	return 0;
 }

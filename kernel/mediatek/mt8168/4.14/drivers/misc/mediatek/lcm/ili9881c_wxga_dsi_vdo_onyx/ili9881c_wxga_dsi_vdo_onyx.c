@@ -718,9 +718,11 @@ static void init_onyx_ili_tg_inx_lcm(void)
 	data_array[0] = 0x00043902;
 	data_array[1] = 0x028198ff;
 	dsi_set_cmdq(data_array, 2, 1);
+	data_array[0] = 0xff031500;
+	dsi_set_cmdq(data_array, 1, 1);
 	data_array[0] = 0x17041500;
 	dsi_set_cmdq(data_array, 1, 1);
-	data_array[0] = 0x12051500;
+	data_array[0] = 0x11051500;
 	dsi_set_cmdq(data_array, 1, 1);
 	data_array[0] = 0x40061500;
 	dsi_set_cmdq(data_array, 1, 1);

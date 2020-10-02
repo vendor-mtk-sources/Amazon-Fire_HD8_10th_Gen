@@ -219,6 +219,7 @@ skip:
 		pr_info("%s: alread finish: %d mA, skip\n",
 			__func__, _uA_to_mA(pdata->input_current_limit));
 	}
+
 	return 0;
 }
 
@@ -291,11 +292,13 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 	} else if (is_typec_adapter(info)) {
 		if (tcpm_inquire_typec_remote_rp_curr(info->tcpc) == 3000) {
 			pdata->input_current_limit = 3000000;
-			pdata->charging_current_limit = 3000000;
+			pdata->charging_current_limit =
+				info->data.ac_charger_current;
 		} else if (tcpm_inquire_typec_remote_rp_curr(info->tcpc)
 			   == 1500) {
 			pdata->input_current_limit = 1500000;
-			pdata->charging_current_limit = 2000000;
+			pdata->charging_current_limit =
+				info->data.ac_charger_current;
 		} else {
 			chr_err("type-C: inquire rp error\n");
 			pdata->input_current_limit = 500000;

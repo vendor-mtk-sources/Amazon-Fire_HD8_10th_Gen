@@ -712,6 +712,9 @@ enum ENUM_EVENT_ID {
 	EVENT_ID_GET_AIS_BSS_INFO = 0xF9,
 	EVENT_ID_DEBUG_CODE = 0xFB,
 	EVENT_ID_RFTEST_READY = 0xFC,	/* 0xFC */
+#if CFG_SUPPORT_BA_OFFLOAD
+	EVENT_ID_BAOFFLOAD_INDICATION = 0xFE,
+#endif
 
 	EVENT_ID_END
 };
@@ -3467,6 +3470,7 @@ struct EVENT_WLAN_INFO {
 struct EVENT_MIB_INFO {
 	struct HW_MIB_COUNTER	    rHwMibCnt;
 	struct HW_MIB2_COUNTER	    rHwMib2Cnt;
+	struct HW_MIB3_COUNTER	    rHwMib3Cnt;
 	struct HW_TX_AMPDU_METRICS	    rHwTxAmpduMts;
 
 };

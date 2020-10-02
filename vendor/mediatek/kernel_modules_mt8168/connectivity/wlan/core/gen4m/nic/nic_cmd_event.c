@@ -946,7 +946,7 @@ void nicCmdEventQueryStatistics(IN struct ADAPTER
 		prStatistics = (struct PARAM_802_11_STATISTICS_STRUCT *)
 			       prCmdInfo->pvInformationBuffer;
 
-#if 0  /* TODO: need to use new EVENT_STATISTICS structure */
+#if 1  /* TODO: need to use new EVENT_STATISTICS structure */
 		prStatistics->rTransmittedFragmentCount =
 			prEventStatistics->rTransmittedFragmentCount;
 		prStatistics->rFailedCount =
@@ -2761,6 +2761,9 @@ void nicCmdEventQueryMibInfo(IN struct ADAPTER *prAdapter,
 		kalMemCopy(&prMibInfo->rHwMib2Cnt,
 			   &prEventMibInfo->rHwMib2Cnt,
 			   sizeof(struct HW_MIB2_COUNTER));
+		kalMemCopy(&prMibInfo->rHwMib3Cnt,
+			   &prEventMibInfo->rHwMib3Cnt,
+			   sizeof(struct HW_MIB3_COUNTER));
 		kalMemCopy(&prMibInfo->rHwTxAmpduMts,
 			   &prEventMibInfo->rHwTxAmpduMts,
 			   sizeof(struct HW_TX_AMPDU_METRICS));
@@ -4349,6 +4352,7 @@ void nicEventMibInfo(IN struct ADAPTER *prAdapter,
 	}
 
 }
+
 
 /*----------------------------------------------------------------------------*/
 /*!

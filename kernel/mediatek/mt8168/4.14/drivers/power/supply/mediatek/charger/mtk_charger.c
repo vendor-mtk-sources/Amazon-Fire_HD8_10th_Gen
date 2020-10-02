@@ -802,14 +802,19 @@ int charger_enable_vbus_ovp(struct charger_manager *pinfo, bool enable)
 
 bool is_typec_adapter(struct charger_manager *info)
 {
+	/* For adapter power detection to determine current via Rp */
+	if (info->power_detection.en &&
+		(tcpm_inquire_typec_remote_rp_curr(info->tcpc) == 3000 ||
+		tcpm_inquire_typec_remote_rp_curr(info->tcpc) == 1500))
+		return true;
+
 	if (info->pd_type == PD_CONNECT_TYPEC_ONLY_SNK &&
 			tcpm_inquire_typec_remote_rp_curr(info->tcpc) != 500 &&
 			info->chr_type != STANDARD_HOST &&
 			info->chr_type != CHARGING_HOST &&
 			mtk_pe20_get_is_connect(info) == false &&
 			mtk_pe_get_is_connect(info) == false &&
-			info->enable_type_c == true &&
-			info->power_detection.en == false)
+			info->enable_type_c == true)
 		return true;
 
 	return false;

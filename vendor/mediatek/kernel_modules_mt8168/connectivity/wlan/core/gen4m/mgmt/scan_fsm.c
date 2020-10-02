@@ -193,6 +193,9 @@ void scnFsmSteps(IN struct ADAPTER *prAdapter,
 				scnSendScanReq(prAdapter);
 			else
 				scnSendScanReqV2(prAdapter);
+
+			/*record timestamp when scan start*/
+			GET_CURRENT_SYSTIME(&prScanInfo->u4ScanStartTime);
 			break;
 
 		default:
@@ -790,6 +793,7 @@ void scnEventScanDone(IN struct ADAPTER *prAdapter,
 	struct SCAN_INFO *prScanInfo;
 	struct SCAN_PARAM *prScanParam;
 	uint32_t u4ChCnt = 0;
+	OS_SYSTIME currentTime;
 
 	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
 	prScanParam = &prScanInfo->rScanParam;
@@ -878,6 +882,9 @@ void scnEventScanDone(IN struct ADAPTER *prAdapter,
 
 	if (prScanInfo->eCurrentState == SCAN_STATE_SCANNING
 		&& prScanDone->ucSeqNum == prScanParam->ucSeqNum) {
+		/*record total scan time duration*/
+		GET_CURRENT_SYSTIME(&currentTime);
+		prScanInfo->u4TotalScanTime += (currentTime - prScanInfo->u4ScanStartTime);
 		/* generate scan-done event for caller */
 		scnFsmGenerateScanDoneMsg(prAdapter, prScanParam->ucSeqNum,
 			prScanParam->ucBssIndex, SCAN_STATUS_DONE);
@@ -1198,8 +1205,12 @@ scnFsmSchedScanRequest(IN struct ADAPTER *prAdapter,
 /*----------------------------------------------------------------------------*/
 u_int8_t scnFsmSchedScanStopRequest(IN struct ADAPTER *prAdapter)
 {
+	struct AIS_FSM_INFO *prAisFsmInfo;
+
 	ASSERT(prAdapter);
 	log_dbg(SCN, INFO, "scnFsmSchedScanStopRequest\n");
+
+	prAisFsmInfo = &(prAdapter->rWifiVar.rAisFsmInfo);
 
 	if (prAdapter->prAisBssInfo == NULL) {
 		log_dbg(SCN, WARN, "prAisBssInfo is NULL\n");
@@ -1212,6 +1223,28 @@ u_int8_t scnFsmSchedScanStopRequest(IN struct ADAPTER *prAdapter)
 	}
 
 	prAdapter->rWifiVar.rScanInfo.fgSchedScanning = FALSE;
+
+	DBGLOG(SCN, TRACE, "Decide whether to Inactive network %d %d\n",
+		IS_NET_ACTIVE(prAdapter, prAdapter->prAisBssInfo->ucBssIndex),
+		prAisFsmInfo->eCurrentState);
+
+	if (IS_NET_ACTIVE(prAdapter, prAdapter->prAisBssInfo->ucBssIndex) &&
+		prAisFsmInfo->eCurrentState != AIS_STATE_NORMAL_TR &&
+		prAisFsmInfo->eCurrentState != AIS_STATE_LOOKING_FOR &&
+		prAisFsmInfo->eCurrentState != AIS_STATE_SCAN &&
+		prAisFsmInfo->eCurrentState != AIS_STATE_ONLINE_SCAN &&
+		prAisFsmInfo->eCurrentState != AIS_STATE_REMAIN_ON_CHANNEL &&
+		prAisFsmInfo->eCurrentState != AIS_STATE_OFF_CHNL_TX &&
+		!timerPendingTimer(&prAisFsmInfo->rJoinTimeoutTimer)) {
+		/* Need to deacitve network when stop sched scan. But at the same time
+		maybe other AIS states need to stay in active. Considering the time that up
+		layer to stop Sched scan is not certain, so we need to check the AIS state here.
+		On the other hand, in the long run, we need to refine the driver arch to control
+		the net active status more concise*/
+		DBGLOG(SCN, INFO, "Inactive network by stop sched scan\n");
+		UNSET_NET_ACTIVE(prAdapter, prAdapter->prAisBssInfo->ucBssIndex);
+		nicDeactivateNetwork(prAdapter, prAdapter->prAisBssInfo->ucBssIndex);
+	}
 
 	return TRUE;
 }

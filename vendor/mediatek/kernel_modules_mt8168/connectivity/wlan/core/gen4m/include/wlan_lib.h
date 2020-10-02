@@ -148,7 +148,8 @@
 			      (WIFI_FEATURE_TDLS) |\
 			      (WIFI_FEATURE_RSSI_MONITOR) |\
 			      (WIFI_FEATURE_CONTROL_ROAMING) |\
-			      (WIFI_FEATURE_SET_TX_POWER_LIMIT)\
+			      (WIFI_FEATURE_SET_TX_POWER_LIMIT) |\
+				(WIFI_FEATURE_LINK_LAYER_STATS)\
 			      )
 
 #define MAX_NUM_GROUP_ADDR		32 /* max number of group addresses */

@@ -37,6 +37,7 @@
 #include <linux/wait.h>		/* For wait queue*/
 #include <linux/sched.h>	/* For wait queue*/
 #include <linux/kthread.h>	/* For Kthread_run */
+#include <linux/kobject.h>
 #include <linux/platform_device.h>	/* platform device */
 #include <linux/time.h>
 
@@ -69,6 +70,7 @@
 
 #include <mach/mtk_battery_property.h>
 #include <mach/mtk_battery_table.h>
+#include <mtk_charger_intf.h>
 #else
 #include <string.h>
 
@@ -94,6 +96,7 @@
 /* ============================================================ */
 struct mtk_battery gm;
 struct fuel_gauge_log_data fg_log_data;
+struct platform_device *batt_platform_dev;
 static int min_battery_temp;
 
 /* ============================================================ */
@@ -2411,6 +2414,102 @@ void fg_drv_update_hw_status(void)
 
 }
 
+#define ENV_SIZE 30
+int battery_report_uevent(void)
+{
+	struct platform_device *dev = batt_platform_dev;
+	struct fuel_gauge_log_data *d = &fg_log_data;
+	struct charger_consumer *charger_consumer = gm.pbat_consumer;
+	struct charger_manager *cm;
+	int i = 0, vbat_mv, ibat_ma, temp, vbus_mv;
+	bool is_charging = 0;
+	char capacity_str[ENV_SIZE] = {0};
+	char ui_soc_str[ENV_SIZE] = {0};
+	char status_str[ENV_SIZE] = {0};
+	char temperature_str[ENV_SIZE] = {0};
+	char vbat_str[ENV_SIZE] = {0};
+	char ibat_str[ENV_SIZE] = {0};
+	char vbus_str[ENV_SIZE] = {0};
+	char chr_type_str[ENV_SIZE] = {0};
+	char iusb_lim_str[ENV_SIZE] = {0};
+	char ibat_lim_str[ENV_SIZE] = {0};
+	char gm30_soc_str[ENV_SIZE] = {0};
+	char c_soc_str[ENV_SIZE] = {0};
+	char v_soc_str[ENV_SIZE] = {0};
+	char vc_diff_str[ENV_SIZE] = {0};
+	char vc_mode_str[ENV_SIZE] = {0};
+	char quse_str[ENV_SIZE] = {0};
+	char *envp[] = {
+		capacity_str,
+		status_str,
+		temperature_str,
+		vbat_str,
+		ibat_str,
+		vbus_str,
+		chr_type_str,
+		iusb_lim_str,
+		ibat_lim_str,
+		ui_soc_str,
+		gm30_soc_str,
+		c_soc_str,
+		v_soc_str,
+		vc_diff_str,
+		vc_mode_str,
+		quse_str,
+		NULL
+	};
+
+	if (!dev) {
+		bm_err("%s: platform_device is NULL\n", __func__);
+		return -1;
+	}
+
+	if ((!IS_ERR_OR_NULL(charger_consumer)) &&
+		(!IS_ERR_OR_NULL(charger_consumer->cm))) {
+		cm = charger_consumer->cm;
+	} else {
+		bm_err("charger manager is not initialized\n");
+		return -1;
+	}
+
+	vbat_mv = battery_get_bat_voltage();
+	temp = battery_get_bat_temperature();
+	vbus_mv = battery_get_vbus();
+	is_charging = gauge_get_current(&ibat_ma);
+	ibat_ma /= 10;
+	if (is_charging == false)
+		ibat_ma = 0 - ibat_ma;
+
+	snprintf(capacity_str, ENV_SIZE, "BATTERY_LEVEL=%d",
+		battery_main.BAT_CAPACITY);
+	snprintf(status_str, ENV_SIZE, "BATTERY_STATUS=%d",
+		battery_main.BAT_STATUS);
+	snprintf(iusb_lim_str, ENV_SIZE, "BATTERY_IUSB_LIM=%d",
+		cm->chg1_data.input_current_limit/1000);
+	snprintf(ibat_lim_str, ENV_SIZE, "BATTERY_IBAT_LIM=%d",
+		cm->chg1_data.charging_current_limit/1000);
+	snprintf(ui_soc_str, ENV_SIZE, "BATTERY_UI_SOC=%d", d->gm30_ui_soc);
+	snprintf(temperature_str, ENV_SIZE, "BATTERY_TEMP=%d", temp);
+	snprintf(vbat_str, ENV_SIZE, "BATTERY_VBAT=%d", vbat_mv);
+	snprintf(ibat_str, ENV_SIZE, "BATTERY_IBAT=%d", ibat_ma);
+	snprintf(vbus_str, ENV_SIZE, "BATTERY_VBUS=%d", vbus_mv);
+	snprintf(chr_type_str, ENV_SIZE, "BATTERY_CHR_TYPE=%d", cm->chr_type);
+	snprintf(gm30_soc_str, ENV_SIZE, "BATTERY_SOC=%d", d->gm30_soc);
+	snprintf(c_soc_str, ENV_SIZE, "BATTERY_C_SOC=%d", d->gm30_fg_c_soc);
+	snprintf(v_soc_str, ENV_SIZE, "BATTERY_V_SOC=%d", d->gm30_fg_v_soc);
+	snprintf(vc_diff_str, ENV_SIZE, "BATTERY_VC_DIFF=%d", d->gm30_vc_diff);
+	snprintf(vc_mode_str, ENV_SIZE, "BATTERY_VC_MODE=%d", d->gm30_vc_mode);
+	snprintf(quse_str, ENV_SIZE, "BATTERY_QUSE=%d",
+		d->gm30_quse_wo_lf_tb1/10);
+
+	kobject_uevent_env(&dev->dev.kobj, KOBJ_CHANGE, envp);
+	bm_err("%s:", __func__);
+	while (envp[i] != NULL)
+		bm_err(" %s", envp[i++]);
+	bm_err("\n");
+
+	return 0;
+}
 
 int battery_update_routine(void *x)
 {
@@ -4106,6 +4205,7 @@ void mtk_battery_init(struct platform_device *dev)
 	struct device_node *np = dev->dev.of_node;
 	int num_names, num_idme_id, i;
 
+	batt_platform_dev = dev;
 	gm.ui_soc = -1;
 	gm.fake_rtc_soc = -1;
 	gm.log_level = BM_DAEMON_DEFAULT_LOG_LEVEL;

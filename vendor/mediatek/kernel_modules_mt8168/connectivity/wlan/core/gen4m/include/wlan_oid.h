@@ -2215,10 +2215,20 @@ struct HW_MIB2_COUNTER {
 	uint32_t u4Tx160MHzCnt;
 };
 
+struct HW_MIB3_COUNTER {
+	/*unit: us*/
+	uint32_t u4Mac2PHYTxTime;
+	uint32_t u4OfdmLGMixedVhtMdrdyTime;
+	uint32_t u4CckMdrdyTime;
+	uint32_t u4OfdmGreenMdrdyTime;
+	uint32_t u4BeaconRxCnt;
+};
+
 struct PARAM_HW_MIB_INFO {
 	uint32_t			u4Index;
 	struct HW_MIB_COUNTER	rHwMibCnt;
 	struct HW_MIB2_COUNTER	rHwMib2Cnt;
+	struct HW_MIB3_COUNTER	rHwMib3Cnt;
 	struct HW_TX_AMPDU_METRICS	rHwTxAmpduMts;
 };
 #endif

@@ -1272,6 +1272,8 @@
 
 #define CFG_SUPPORT_DTIM_SKIP	1 /* fos_change oneline */
 
+#define CFG_SUPPORT_BA_OFFLOAD 1 /* fos_change oneline */
+
 /*******************************************************************************
  *                             D A T A   T Y P E S
  *******************************************************************************

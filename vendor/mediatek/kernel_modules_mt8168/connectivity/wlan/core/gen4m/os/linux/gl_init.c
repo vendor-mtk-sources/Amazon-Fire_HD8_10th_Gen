@@ -168,6 +168,9 @@ module_param_named(ap, gprifnameap, charp, 0000);
 uint8_t aucDebugModule[DBG_MODULE_NUM];
 uint32_t au4LogLevel[ENUM_WIFI_LOG_MODULE_NUM] = {ENUM_WIFI_LOG_LEVEL_DEFAULT};
 
+/*record timestamp when wifi last on*/
+OS_SYSTIME lastWifiOnTime;
+
 /* 4 2007/06/26, mikewu, now we don't use this, we just fix the number of wlan
  *               device to 1
  */
@@ -4470,6 +4473,9 @@ static int32_t wlanProbe(void *pvData, void *pvDriverData)
 #if CFG_SUPPORT_WIFI_POWER_DEBUG
 		power_supply_reg_notifier(&wlan_psy_nb);
 #endif /* fos_change end */
+
+		/*record timestamp of wifi on*/
+		GET_CURRENT_SYSTIME(&lastWifiOnTime);
 	} else {
 		DBGLOG(INIT, ERROR, "wlanProbe: probe failed, reason:%d\n",
 		       eFailReason);

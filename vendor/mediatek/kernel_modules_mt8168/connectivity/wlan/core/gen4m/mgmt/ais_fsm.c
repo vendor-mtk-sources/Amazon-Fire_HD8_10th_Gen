@@ -2138,6 +2138,19 @@ void aisFsmSteps(IN struct ADAPTER *prAdapter, enum ENUM_AIS_STATE eNextState)
 					    prAdapter->prAisBssInfo->ucBssIndex,
 					    WLAN_STATUS_JOIN_FAILURE);
 
+			if (prAdapter->rWifiVar.rScanInfo.fgSchedScanning) {
+				/* Join failure case, net should be always active here, but if
+				    sched scanning is running, when AIS return to IDLE, it will
+				    not do net deactive. But we need to do net active/deactive
+				    for release pwr_active flag in FW. At the same time, avoiding
+				    to set net actve twice, first deactivate, then activate*/
+				nicDeactivateNetwork(prAdapter,
+				prAdapter->prAisBssInfo->ucBssIndex);
+
+				nicActivateNetwork(prAdapter,
+				prAdapter->prAisBssInfo->ucBssIndex);
+			}
+
 			eNextState = AIS_STATE_IDLE;
 			fgIsTransition = TRUE;
 

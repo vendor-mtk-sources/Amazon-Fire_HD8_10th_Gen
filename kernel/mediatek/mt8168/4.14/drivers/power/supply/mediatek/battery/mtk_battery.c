@@ -1460,7 +1460,7 @@ int force_get_tbat(bool update)
 
 unsigned int battery_meter_get_fg_time(void)
 {
-	unsigned int time;
+	unsigned int time = 0;
 
 	gauge_dev_get_time(gm.gdev, &time);
 	return time;
@@ -4072,7 +4072,7 @@ void battery_shutdown(struct platform_device *dev)
 {
 	int fg_coulomb = 0;
 	int shut_car_diff = 0;
-	int verify_car;
+	int verify_car = 0;
 
 	/* Charger & Battery mertrics */
 	bat_metrics_uninit();

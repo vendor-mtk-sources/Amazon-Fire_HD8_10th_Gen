@@ -168,7 +168,7 @@ static int idme_get_front_cam_otp(unsigned char *data)
 	struct device_node *ap = NULL;
 	const unsigned char *idme_data = NULL;
 	char buf[3] = {0};
-	int len,i;
+	int len = 0, i;
 	int ret = 0;
 
 	if (data == NULL) {
@@ -204,7 +204,7 @@ static int idme_get_rear_cam_otp(unsigned char *data)
 	struct device_node *ap = NULL;
 	const unsigned char *idme_data = NULL;
 	char buf[3] = {0};
-	int len,i;
+	int len = 0, i;
 	int ret = 0;
 
 	if (data == NULL) {

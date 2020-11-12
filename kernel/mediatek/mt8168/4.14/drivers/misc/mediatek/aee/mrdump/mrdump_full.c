@@ -242,7 +242,7 @@ void mrdump_save_ctrlreg(void)
 	void *creg;
 	int cpu = get_HW_cpuid();
 
-	if (mrdump_cblock) {
+	if (mrdump_cblock && cpu >= 0) {
 		crash_record = &mrdump_cblock->crash_record;
 		creg = (void *)&crash_record->cpu_creg[cpu];
 		mrdump_save_control_register(creg);

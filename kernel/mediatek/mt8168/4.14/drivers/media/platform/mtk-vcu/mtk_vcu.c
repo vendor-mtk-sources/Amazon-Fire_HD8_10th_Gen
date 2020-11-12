@@ -593,6 +593,8 @@ static int vcu_gce_cmd_flush(struct mtk_vcu *vcu, unsigned long arg)
 	if (ret != 0) {
 		pr_debug("[VCU] %s(%d) copy from user failed!\n", __func__,
 			__LINE__);
+		kfree(cmds);
+		kfree(buff);
 		return -EINVAL;
 	}
 	user_data_addr =
@@ -602,6 +604,8 @@ static int vcu_gce_cmd_flush(struct mtk_vcu *vcu, unsigned long arg)
 	if (ret != 0) {
 		pr_debug("[VCU] %s(%d) copy from user failed!\n", __func__,
 			__LINE__);
+		kfree(cmds);
+		kfree(buff);
 		return -EINVAL;
 	}
 	buff->cmdq_buff.cmds_user_ptr = (u64)(unsigned long)cmds;
@@ -630,8 +634,10 @@ static int vcu_gce_cmd_flush(struct mtk_vcu *vcu, unsigned long arg)
 	atomic_inc(&vcu->gce_job_cnt[i]);
 	mutex_unlock(&vcu->vcu_mutex[i]);
 
-	if (cmdq_pkt_cl_create(&pkt_ptr, cl) != 0)
+	if (cmdq_pkt_cl_create(&pkt_ptr, cl) != 0) {
 		pr_info("[VCU] cmdq_pkt_cl_create fail\n");
+		pkt_ptr = NULL;
+	}
 	buff->pkt_ptr = pkt_ptr;
 
 	/* clear all registered event */

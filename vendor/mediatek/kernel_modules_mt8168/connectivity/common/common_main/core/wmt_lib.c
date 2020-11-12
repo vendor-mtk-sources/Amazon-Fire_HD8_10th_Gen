@@ -332,6 +332,10 @@ INT32 wmt_lib_init(VOID)
 	osal_sleepable_lock_init(&pDevWmt->rFreeOpQ.sLock);
 	pDevWmt->state.data = 0;
 
+	osal_memcpy(gDevWmt.rst_wake_lock.name, "chiprst", 7);
+	gDevWmt.rst_wake_lock.init_flag = 0;
+	osal_wake_lock_init(&gDevWmt.rst_wake_lock);
+
 	/* Initialize op queue */
 	RB_INIT(&pDevWmt->rFreeOpQ, WMT_OP_BUF_SIZE);
 	RB_INIT(&pDevWmt->rActiveOpQ, WMT_OP_BUF_SIZE);
@@ -480,6 +484,7 @@ INT32 wmt_lib_deinit(VOID)
 	for (i = 0; i < WMT_OP_BUF_SIZE; i++)
 		osal_signal_deinit(&(pDevWmt->arQue[i].signal));
 
+	osal_wake_lock_deinit(&pDevWmt->rst_wake_lock);
 	osal_sleepable_lock_deinit(&pDevWmt->rFreeOpQ.sLock);
 	osal_sleepable_lock_deinit(&pDevWmt->rActiveOpQ.sLock);
 	osal_sleepable_lock_deinit(&pDevWmt->rWorkerOpQ.sLock);
@@ -2284,7 +2289,7 @@ ENUM_WMTRSTRET_TYPE_T wmt_lib_cmb_rst(ENUM_WMTRSTSRC_TYPE_T src)
 		osal_op_raise_signal(pOp, -1);
 	/* wakeup blocked cmd */
 	wmt_dev_rx_event_cb();
-
+	osal_wake_lock(&pDevWmt->rst_wake_lock);
 	/* <4> retry until reset flow successful */
 	while (retries > 0) {
 		/* <4.1> reset combo hw */
@@ -2303,6 +2308,7 @@ ENUM_WMTRSTRET_TYPE_T wmt_lib_cmb_rst(ENUM_WMTRSTSRC_TYPE_T src)
 		}
 		break;
 	}
+	osal_wake_unlock(&pDevWmt->rst_wake_lock);
 	osal_clear_bit(WMT_STAT_RST_ON, &pDevWmt->state);
 	if (bRet == MTK_WCN_BOOL_FALSE) {
 		rstMsg = WMTRSTMSG_RESET_END_FAIL;

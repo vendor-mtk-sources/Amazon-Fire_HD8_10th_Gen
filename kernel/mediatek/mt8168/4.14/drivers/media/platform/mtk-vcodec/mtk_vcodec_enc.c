@@ -137,7 +137,7 @@ static void return_free_buffers(struct mtk_vcodec_ctx *ctx)
 		src_vb2_v4l2 = NULL;
 		pfrm = NULL;
 		pbs = NULL;
-
+		memset(&rResult, 0, sizeof(rResult));
 		get_free_buffers(ctx, &rResult);
 
 		if (rResult.bs_va != 0) {
@@ -1473,7 +1473,7 @@ static int vb2ops_venc_start_streaming(struct vb2_queue *q, unsigned int count)
 		if (!vb2_start_streaming_called(&ctx->m2m_ctx->out_q_ctx.q))
 			return 0;
 	}
-
+	memset(&param, 0, sizeof(param));
 	mtk_venc_set_param(ctx, &param);
 	ret = venc_if_set_param(ctx, VENC_SET_PARAM_ENC, &param);
 	if (ret) {
@@ -1578,7 +1578,7 @@ static int mtk_venc_encode_header(void *priv)
 	struct vb2_v4l2_buffer *dst_vb2_v4l2, *src_vb2_v4l2;
 	struct mtk_vcodec_mem bs_buf;
 	struct venc_done_result enc_result;
-
+	memset(&enc_result, 0, sizeof(enc_result));
 	dst_buf = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 	if (!dst_buf) {
 		mtk_v4l2_debug(1, "No dst buffer");
@@ -1809,6 +1809,7 @@ static void mtk_venc_worker(struct work_struct *work)
 	struct venc_inst *inst = NULL;
 
 	mutex_lock(&ctx->worker_lock);
+	memset(&enc_result, 0, sizeof(enc_result));
 
 	if (ctx->state == MTK_STATE_ABORT) {
 		v4l2_m2m_job_finish(ctx->dev->m2m_dev_enc, ctx->m2m_ctx);

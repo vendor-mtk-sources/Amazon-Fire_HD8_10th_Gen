@@ -3072,7 +3072,7 @@ static void cmdq_core_dump_handle_summary(const struct cmdqRecStruct *handle,
 	s32 irqFlag = 0;
 	u32 insts[2] = { 0 };
 	u32 *pcVA = NULL;
-	dma_addr_t curr_pc;
+	dma_addr_t curr_pc = 0;
 	struct cmdq_client *client;
 
 	if (!handle || !handle->pkt || list_empty(&handle->pkt->buf) ||

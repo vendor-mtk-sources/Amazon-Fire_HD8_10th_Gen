@@ -102,7 +102,7 @@ static void _disable_all_charging(struct charger_manager *info)
 static int adapter_power_detection_by_ocp(struct charger_manager *info)
 {
 	struct charger_data *pdata = &info->chg1_data;
-	int bak_cv_uv, bak_iusb_ua, bak_ichg_ua, bak_mivr = 0;
+	int bak_cv_uv = 0, bak_iusb_ua = 0, bak_ichg_ua = 0, bak_mivr = 0;
 	int cv_uv = info->data.battery_cv;
 	int iusb_ua = info->power_detection.aicl_trigger_iusb;
 	int ichg_ua = info->power_detection.aicl_trigger_ichg;
@@ -151,7 +151,7 @@ static int adapter_power_detection(struct charger_manager *info)
 	struct charger_data *pdata = &info->chg1_data;
 	struct power_detection_data *det = &info->power_detection;
 	int chr_type = info->chr_type;
-	int aicl_ua, rp_curr_ma;
+	int aicl_ua = 0, rp_curr_ma;
 	static const char * const category_text[] = {
 		"5W", "7.5W", "9W", "12W", "15W"
 	};

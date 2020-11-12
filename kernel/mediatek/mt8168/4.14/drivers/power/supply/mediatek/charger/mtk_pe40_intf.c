@@ -54,7 +54,7 @@ int mtk_pe40_pd_1st_request(struct charger_manager *pinfo,
 	int adapter_mv, int adapter_ma, int ma,
 	const struct tcp_dpm_event_cb_data *cb_data)
 {
-	unsigned int oldmA;
+	unsigned int oldmA = 0;
 	int ret;
 	int mivr;
 
@@ -88,7 +88,7 @@ int mtk_pe40_pd_request(struct charger_manager *pinfo,
 	int adapter_mv, int adapter_ma, int ma,
 	const struct tcp_dpm_event_cb_data *cb_data)
 {
-	unsigned int oldmA;
+	unsigned int oldmA = 0;
 	int ret;
 	int mivr;
 

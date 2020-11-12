@@ -330,10 +330,11 @@ static ssize_t mpu_config_store
 	char *ptr;
 	char *token[EMI_MPU_MAX_TOKEN];
 	static struct emi_region_info_t region_info;
-	unsigned long long start, end;
-	unsigned long region;
-	unsigned long dgroup;
-	unsigned long apc;
+	unsigned long long start = 0;
+	unsigned long long end = 0;
+	unsigned long region = 0;
+	unsigned long dgroup = 0;
+	unsigned long apc = 0;
 	int i, ret;
 
 	if ((strlen(buf) + 1) > EMI_MPU_MAX_CMD_LEN) {

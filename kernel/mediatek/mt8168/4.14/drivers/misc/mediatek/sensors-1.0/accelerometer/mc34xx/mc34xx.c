@@ -78,6 +78,8 @@
 #define IS_MERAK()      ((0xC0 == s_bHWID) || (0x40 == s_bHWID) || (0x20 == s_bHWID))
 #define IS_MENSA()      (0xA0 == s_bHWID)
 
+#define IS_YES    "y"
+#define IS_NO     "n"
 /**************************
  *** DEBUG
  **************************/
@@ -1139,10 +1141,10 @@ static ssize_t selftest_store(struct device_driver *ddri, const char *buf, size_
 
 	if (!MC34XX_JudgeTestResult(client)) {
 		GSE_LOG("SELFTEST : PASS\n");
-		strcpy(selftestRes, "y");
+		strncpy(selftestRes, IS_YES, sizeof(selftestRes));
 	} else {
 		GSE_LOG("SELFTEST : FAIL\n");
-		strcpy(selftestRes, "n");
+		strncpy(selftestRes, IS_NO, sizeof(selftestRes));
 	}
 
 	return count;

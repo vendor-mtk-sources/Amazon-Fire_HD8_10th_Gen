@@ -318,7 +318,7 @@ int gauge_enable_iavg_interrupt(bool ht_en, int ht_th,
 
 int gauge_get_nag_vbat(void)
 {
-	int nafg_vbat;
+	int nafg_vbat = 0;
 
 	gauge_dev_get_nag_vbat(gm.gdev, &nafg_vbat);
 	return nafg_vbat;
@@ -1661,7 +1661,7 @@ void sw_check_bat_plugout(void)
 
 void fg_nafg_monitor(void)
 {
-	int nafg_cnt;
+	int nafg_cnt = 0;
 	struct timespec now_time, dtime;
 
 	if (gm.disableGM30 || gm.cmd_disable_nafg || gm.ntc_disable_nafg)
@@ -1856,7 +1856,7 @@ void fg_zcv_int_handler(void)
 	int fg_coulomb = 0;
 	int zcv_intr_en = 0;
 	int zcv_intr_curr = 0;
-	int zcv;
+	int zcv = 0;
 
 	if (fg_interrupt_check() == false)
 		return;
@@ -3349,7 +3349,7 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 
 	case FG_DAEMON_CMD_GET_BAT_PLUG_OUT_TIME:
 	{
-		int p1, p2;
+		int p1, p2 = 0;
 		unsigned int time = 0;
 
 		gauge_dev_get_boot_battery_plug_out_status(gm.gdev, &p1, &p2);
@@ -3404,7 +3404,7 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 
 	case FG_DAEMON_CMD_GET_IS_FG_INITIALIZED:
 	{
-		int fg_reset;
+		int fg_reset = 0;
 
 		gauge_dev_is_gauge_initialized(gm.gdev, &fg_reset);
 		ret_msg->fgd_data_len += sizeof(fg_reset);

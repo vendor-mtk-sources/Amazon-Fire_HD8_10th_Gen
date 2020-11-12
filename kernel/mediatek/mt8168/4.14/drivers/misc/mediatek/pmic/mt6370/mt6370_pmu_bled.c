@@ -105,7 +105,7 @@ int led_parse_normalize_dts(const struct device_node *led_node)
 	ret = of_property_read_u32(led_node, "brightness-normalize-count",
 			&leds_norm_cnt);
 	if (ret) {
-		pr_err("DTS not found LED panel count(%d)!\n", leds_norm_cnt);
+		pr_err("DTS not found LED panel count!\n");
 		goto err_exit;
 	}
 	if (leds_norm_cnt > CUST_MAX_PANEL_NUM) {

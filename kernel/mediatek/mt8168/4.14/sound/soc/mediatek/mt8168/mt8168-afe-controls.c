@@ -258,7 +258,7 @@ static int mt8168_afe_sinegen_loopback_mode_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_platform *plat = snd_soc_kcontrol_platform(kcontrol);
 	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(plat);
 	unsigned int mode;
-	unsigned int val;
+	unsigned int val = 0;
 	unsigned int in_out_sel;
 
 	mt8168_afe_enable_main_clk(afe);
@@ -338,7 +338,7 @@ static int mt8168_afe_sinegen_timing_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_platform *plat = snd_soc_kcontrol_platform(kcontrol);
 	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(plat);
 	unsigned int timing;
-	unsigned int val;
+	unsigned int val = 0;
 
 	mt8168_afe_enable_main_clk(afe);
 

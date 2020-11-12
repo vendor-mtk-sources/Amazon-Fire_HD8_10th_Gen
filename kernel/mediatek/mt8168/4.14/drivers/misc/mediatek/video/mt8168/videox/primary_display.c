@@ -3103,7 +3103,8 @@ int primary_display_change_lcm_resolution(unsigned int width,
 
 static int _wdma_fence_release_callback(unsigned long userdata)
 {
-	int fence_idx, layer;
+	int fence_idx = 0;
+	int layer = 0;
 
 	layer = disp_sync_get_output_timeline_id();
 
@@ -3122,7 +3123,7 @@ static int _Interface_fence_release_callback(unsigned long userdata)
 
 #ifdef _DEBUG_DITHER_HANG_
 	if (primary_display_is_video_mode()) {
-		unsigned int status;
+		unsigned int status = 0;
 
 		cmdqBackupReadSlot(pgc->dither_status_info, 0, &status);
 		if ((status) != 0x10001) {
@@ -3320,7 +3321,7 @@ static int _ovl_fence_release_callback(unsigned long userdata)
 	/* check last ovl status: should be idle when config */
 	if (primary_display_is_video_mode() &&
 		!primary_display_is_decouple_mode()) {
-		unsigned int status;
+		unsigned int status = 0;
 
 		cmdqBackupReadSlot(pgc->ovl_status_info, 0, &status);
 #ifdef DEBUG_OVL_CONFIG_TIME

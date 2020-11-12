@@ -672,10 +672,7 @@ static long EEPROM_drv_ioctl(
 #ifdef CAM_CALGETDLT_DEBUG
 		do_gettimeofday(&ktv1);
 #endif
-		if (use_idme)
-			return -EFAULT;
-
-		if (EEPROM_set_i2c_bus(ptempbuf->deviceID) != 0) {
+		if (use_idme || EEPROM_set_i2c_bus(ptempbuf->deviceID) != 0) {
 			PK_DBG("deviceID Error!\n");
 			kfree(pBuff);
 			kfree(pu1Params);

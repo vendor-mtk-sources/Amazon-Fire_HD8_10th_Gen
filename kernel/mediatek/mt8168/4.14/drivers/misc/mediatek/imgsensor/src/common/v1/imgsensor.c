@@ -484,7 +484,7 @@ static void imgsensor_init_sensor_list(void)
 	int ret;
 	struct IMGSENSOR             *pimgsensor   = &gimgsensor;
 	struct IMGSENSOR_SENSOR_LIST *psensor_list =  gimgsensor_sensor_list;
-	const char *penable_sensor;
+	const char *penable_sensor = NULL;
 	struct device_node *of_node
 		= of_find_compatible_node(NULL, NULL, "mediatek,camera_hw");
 
@@ -1547,6 +1547,8 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 		memset(pValue, 0x0, sizeof(MUINT32));
 
 		if (FeatureParaLen < sizeof(unsigned long long)*2) {
+			kfree(pFeaturePara);
+			kfree(pValue);
 			cam_pr_err("write data out of bounds\n");
 			return -EFAULT;
 		}
@@ -1607,6 +1609,9 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 		*(pFeaturePara_64) = (uintptr_t) pValue0;
 		*(pFeaturePara_64 + 1) = (uintptr_t) pValue1;
 		if (FeatureParaLen < sizeof(unsigned long long)*2) {
+			kfree(pValue0);
+			kfree(pValue1);
+			kfree(pFeaturePara);
 			cam_pr_err("write data out of bounds\n");
 			return -EFAULT;
 		}
@@ -1666,6 +1671,7 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 		void *usr_ptr =
 			(void *)(uintptr_t) (*(pFeaturePara_64 + 1));
 		if (FeatureParaLen < sizeof(unsigned long long)*2) {
+			kfree(pFeaturePara);
 			cam_pr_err("write data out of bounds\n");
 			return -EFAULT;
 		}
@@ -1705,6 +1711,7 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 		void *usr_ptr =
 			(void *)(uintptr_t) (*(pFeaturePara_64 + 1));
 		if (FeatureParaLen < sizeof(unsigned long long)*2) {
+			kfree(pFeaturePara);
 			cam_pr_err("write data out of bounds\n");
 			return -EFAULT;
 		}
@@ -1741,6 +1748,7 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 		void *usr_ptr =
 			(void *)(uintptr_t) (*(pFeaturePara_64 + 1));
 		if (FeatureParaLen < sizeof(unsigned long long)*2) {
+			kfree(pFeaturePara);
 			cam_pr_err("write data out of bounds\n");
 			return -EFAULT;
 		}
@@ -1780,6 +1788,7 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 			(void *)(uintptr_t) (*(pFeaturePara_64 + 1));
 		kal_uint32 *pReg = NULL;
 		if (FeatureParaLen < sizeof(unsigned long long)*2) {
+			kfree(pFeaturePara);
 			cam_pr_err("write data out of bounds\n");
 			return -EFAULT;
 		}
@@ -2007,6 +2016,7 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 		kal_uint32 buf_sz =
 			(kal_uint32) (*(pFeaturePara_64 + 2));
 		if (FeatureParaLen < sizeof(unsigned long long)*3) {
+			kfree(pFeaturePara);
 			cam_pr_err("write data out of bounds\n");
 			return -EFAULT;
 		}
@@ -2056,6 +2066,7 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 		kal_uint32 index = *(pFeaturePara_64 + 2);
 		kal_uint8 *pReg = NULL;
 		if (FeatureParaLen < sizeof(unsigned long long)*3) {
+			kfree(pFeaturePara);
 			cam_pr_err("write data out of bounds\n");
 			return -EFAULT;
 		}

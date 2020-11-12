@@ -1339,7 +1339,7 @@ static int ccorr_parse_coef(const char *cmd, enum DISP_MODULE_ENUM module,
 	int i, j, end;
 	bool stop = false;
 	int count = 0;
-	unsigned long temp;
+	unsigned long temp = 0;
 	unsigned int ccorr_coef[3][3];
 	char *next = (char *)cmd;
 

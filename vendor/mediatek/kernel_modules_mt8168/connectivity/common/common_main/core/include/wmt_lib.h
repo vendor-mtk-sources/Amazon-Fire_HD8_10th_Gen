@@ -293,6 +293,7 @@ typedef struct _DEV_WMT_ {
 	struct work_struct wmtd_worker_thread_work;
 	struct osal_op_history wmtd_op_history;
 	struct osal_op_history worker_op_history;
+	OSAL_WAKE_LOCK rst_wake_lock;
 	UINT8 msg_local_buffer[WMT_IDC_MSG_BUFFER];
 	struct vendor_patch_table patch_table;
 

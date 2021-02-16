@@ -888,12 +888,17 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 	&jd9365d_wxga_dsi_vdo_fiti_kd_hsd_onyx_lcm_drv,
 	&jd9365d_wxga_dsi_vdo_fiti_kd_auo_onyx_lcm_drv,
 	&jd9366ab_wxga_dsi_vdo_fiti_tg_boe_onyx_lcm_drv,
+	&jd9365d_wxga_dsi_vdo_fiti_tah_tg_boe_onyx_lcm_drv,
 #endif
 
 #if defined(ILI9881C_WXGA_DSI_VDO_ONYX)
 	&ili9881c_wxga_dsi_vdo_ili_tg_inx_onyx_lcm_drv,
 	&ili9881c_wxga_dsi_vdo_ili_kd_auo_onyx_lcm_drv,
 	&ili9881c_wxga_dsi_vdo_ili_kd_hsd_onyx_lcm_drv,
+#endif
+
+#if defined(SC7705_WXGA_DSI_VDO_ONYX)
+	&sc7705_wxga_dsi_vdo_sitr_kd_hsd_onyx_lcm_drv
 #endif
 
 #if defined(JD936X_WXGA_DSI_VDO_PEREGRINE)

@@ -129,6 +129,34 @@ ROOT_NODE {
 		pinctrl-3 = <&lcm_pins_bl1>;
 	};
 
+	sc7705_kd_hsd: lcm@7 {
+		compatible = "sc,sc7705_kd_hsd";
+		reg-lcm-supply = <&mt_pmic_vsim1_ldo_reg>;
+		vendor_id = <8>;
+		pinctrl-names = "lcm_pins_rst0",
+				"lcm_pins_rst1",
+				"lcm_pins_bl0",
+				"lcm_pins_bl1";
+		pinctrl-0 = <&lcm_pins_rst0>;
+		pinctrl-1 = <&lcm_pins_rst1>;
+		pinctrl-2 = <&lcm_pins_bl0>;
+		pinctrl-3 = <&lcm_pins_bl1>;
+	};
+
+	jd936x_tah_tg_boe: lcm@8 {
+		compatible = "jd,jd936x_tah_tg_boe";
+		reg-lcm-supply = <&mt_pmic_vsim1_ldo_reg>;
+		vendor_id = <13>;
+		pinctrl-names = "lcm_pins_rst0",
+				"lcm_pins_rst1",
+				"lcm_pins_bl0",
+				"lcm_pins_bl1";
+		pinctrl-0 = <&lcm_pins_rst0>;
+		pinctrl-1 = <&lcm_pins_rst1>;
+		pinctrl-2 = <&lcm_pins_bl0>;
+		pinctrl-3 = <&lcm_pins_bl1>;
+	};
+
 	rt-pd-manager {
 		compatible = "mediatek,rt-pd-manager";
 	};
@@ -530,7 +558,7 @@ ROOT_NODE {
 				/*brightness normalization*/
 				brightness-normalize-enable = <1>;
 				chosen-id = <255>;
-				brightness-normalize-count = <7>;
+				brightness-normalize-count = <9>;
 				brightness-normalize-table = <
 					/* <panel-id base scale def> */
 					1 450 450 81 /*ILI_KD_AUO*/
@@ -539,7 +567,9 @@ ROOT_NODE {
 					4 400 400 81 /*FITI_KD_AUO*/
 					5 445 445 81 /*FITI_TG_BOE*/
 					6 400 400 81 /*ILI_ILI_INX*/
-					7 450 450 81 /*ILI_KD_HSD*/ >;
+					7 450 450 81 /*ILI_KD_HSD*/
+					8 440 440 81 /*SITR_KD_HSD*/
+					13 405 405 81 /*FITI_TG_BOE*/ >;
 			};
 			dsv {
 				compatible = "mediatek,mt6370_pmu_dsv";

@@ -34,6 +34,7 @@
  * @id: the id of inter-processor interrupt
  * @ctx: context for v4l2 layer integration
  * @dev: device for v4l2 layer integration
+ * @abort: abort when vpud crashed stop this instance ipi_msg
  */
 struct venc_vcu_inst {
 	wait_queue_head_t wq_hd;
@@ -47,8 +48,10 @@ struct venc_vcu_inst {
 	struct mtk_vcodec_ctx *ctx;
 	struct platform_device *dev;
 	bool abort;
+	int daemon_pid;
+	ipi_handler_t handler;
 };
-
+int vcu_enc_ipi_handler(void *data, unsigned int len, void *priv);
 int vcu_enc_init(struct venc_vcu_inst *vcu);
 int vcu_enc_query_cap(struct venc_vcu_inst *vcu, unsigned int id, void *out);
 int vcu_enc_set_param(struct venc_vcu_inst *vcu,

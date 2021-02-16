@@ -4199,6 +4199,12 @@ p2pFuncParseBeaconVenderId(IN struct ADAPTER *prAdapter,
 			prAdapter, pucIE, &ucOuiType, &u2SubTypeVersion)) {
 			if ((ucOuiType == VENDOR_OUI_TYPE_WPA)
 				&& (u2SubTypeVersion == VERSION_WPA)) {
+				if (IE_SIZE(pucIE) > (ELEM_HDR_LEN + ELEM_MAX_LEN_WPA)) {
+					DBGLOG(P2P, ERROR,
+						"wpa type only max 36 bytes but %d received\n", IE_SIZE(pucIE));
+					ASSERT(FALSE);
+					break;
+				}
 				if (!kalP2PGetCcmpCipher(prAdapter->prGlueInfo,
 					ucRoleIndex))
 					kalP2PSetCipher(prAdapter->prGlueInfo,
@@ -4223,6 +4229,13 @@ p2pFuncParseBeaconVenderId(IN struct ADAPTER *prAdapter,
 			prAdapter, pucIE, &ucOuiType)) {
 			/* TODO Store the whole P2P IE & generate later. */
 			/* Be aware that there may be one or more P2P IE. */
+			if (prP2pSpecificBssInfo->u2AttributeLen + IE_SIZE(pucIE)
+				> P2P_MAXIMUM_ATTRIBUTES_CACHE_SIZE) {
+				DBGLOG(P2P, ERROR,
+					"aucAttributesCache only 768 bytes but received more\n");
+				ASSERT(FALSE);
+				break;
+			}
 			if (ucOuiType == VENDOR_OUI_TYPE_P2P) {
 				kalMemCopy(&prP2pSpecificBssInfo
 					->aucAttributesCache
@@ -4246,6 +4259,13 @@ p2pFuncParseBeaconVenderId(IN struct ADAPTER *prAdapter,
 					ucOuiType);
 			}
 		} else {
+			if (prP2pSpecificBssInfo->u2AttributeLen + IE_SIZE(pucIE)
+				> P2P_MAXIMUM_ATTRIBUTES_CACHE_SIZE) {
+				DBGLOG(P2P, ERROR,
+					"aucAttributesCache only 768 bytes but received more\n");
+				ASSERT(FALSE);
+				break;
+			}
 			kalMemCopy(&prP2pSpecificBssInfo->aucAttributesCache
 				[prP2pSpecificBssInfo->u2AttributeLen],
 				pucIE, IE_SIZE(pucIE));

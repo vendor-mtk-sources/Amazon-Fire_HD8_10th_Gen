@@ -349,13 +349,17 @@ int mtk_cfg80211_del_key(struct wiphy *wiphy,
 	uint32_t u4BufLen = 0;
 	int32_t i4Rslt = -EINVAL;
 
+	if (kalHaltTryLock())
+		return 0;
+
+	if (kalIsHalted() || !wiphy) {
+		DBGLOG(RSN,WARN,"wlan is halt ,skip key deletion\n");
+		kalHaltUnlock();
+		return i4Rslt;
+	}
+
 	prGlueInfo = (struct GLUE_INFO *) wiphy_priv(wiphy);
 	ASSERT(prGlueInfo);
-
-	if (g_u4HaltFlag) {
-		DBGLOG(RSN, WARN, "wlan is halt, skip key deletion\n");
-		return WLAN_STATUS_FAILURE;
-	}
 
 	DBGLOG(RSN, TRACE, "mtk_cfg80211_del_key\n");
 #if DBG
@@ -378,12 +382,14 @@ int mtk_cfg80211_del_key(struct wiphy *wiphy,
 	}
 
 	if ((prGlueInfo->prAdapter == NULL)
-	    || (prGlueInfo->prAdapter->prAisBssInfo == NULL))
+	    || (prGlueInfo->prAdapter->prAisBssInfo == NULL)) {
+		kalHaltUnlock();
 		return i4Rslt;
+	}
 
 	rRemoveKey.ucBssIdx =
 		prGlueInfo->prAdapter->prAisBssInfo->ucBssIndex;
-
+	kalHaltUnlock();
 	rStatus = kalIoctl(prGlueInfo, wlanoidSetRemoveKey, &rRemoveKey,
 			rRemoveKey.u4Length, FALSE, FALSE, TRUE, &u4BufLen);
 
@@ -391,7 +397,6 @@ int mtk_cfg80211_del_key(struct wiphy *wiphy,
 		DBGLOG(RSN, WARN, "remove key error:%x\n", rStatus);
 	else
 		i4Rslt = 0;
-
 	return i4Rslt;
 }
 
@@ -4648,7 +4653,7 @@ mtk_reg_notify(IN struct wiphy *pWiphy,
 	struct ADAPTER *prAdapter;
 	enum regd_state old_state;
 
-	if (g_u4HaltFlag) {
+	if (kalIsHalted()) {
 		DBGLOG(RLM, WARN, "wlan is halt, skip reg callback\n");
 		return;
 	}

@@ -168,6 +168,7 @@ int vcu_ipi_register(struct platform_device *pdev, enum ipi_id id,
  * @id:         IPI ID
  * @buf:        the data buffer
  * @len:        the data buffer length
+ * @priv:       private data for IPI handler
  *
  * This function is thread-safe. When this function returns,
  * VCU has received the data and starts the processing.
@@ -177,7 +178,7 @@ int vcu_ipi_register(struct platform_device *pdev, enum ipi_id id,
  * Return: Return 0 if sending data successfully, otherwise it is failed.
  **/
 int vcu_ipi_send(struct platform_device *pdev, enum ipi_id id, void *buf,
-		 unsigned int len);
+		 unsigned int len, void *priv);
 
 /**
  * vcu_get_plat_device - get VCU's platform device

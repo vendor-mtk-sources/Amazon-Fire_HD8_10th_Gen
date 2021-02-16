@@ -96,8 +96,6 @@
  *******************************************************************************
  */
 /* #define MAX_IOREQ_NUM   10 */
-struct semaphore g_halt_sem;
-int g_u4HaltFlag;
 u_int8_t g_fgNvramAvailable;
 
 struct REG_INFO grRegInfo;
@@ -1197,9 +1195,11 @@ static void wlanSetMulticastListWorkQueue(
 	uint32_t u4SetInfoLen;
 	struct net_device *prDev = gPrDev;
 
-	down(&g_halt_sem);
-	if (g_u4HaltFlag) {
-		up(&g_halt_sem);
+	if (kalHaltLock(KAL_HALT_LOCK_TIMEOUT_NORMAL_CASE))
+		return;
+	if (kalIsHalted()) {
+		DBGLOG(INIT, WARN,"wlan is halt skip wlansetMulticastListWorkQueue\n");
+		kalHaltUnlock();
 		return;
 	}
 
@@ -1211,7 +1211,7 @@ static void wlanSetMulticastListWorkQueue(
 		DBGLOG(INIT, WARN,
 		       "abnormal dev or skb: prDev(0x%p), prGlueInfo(0x%p)\n",
 		       prDev, prGlueInfo);
-		up(&g_halt_sem);
+		kalHaltUnlock();
 		return;
 	}
 
@@ -1233,7 +1233,7 @@ static void wlanSetMulticastListWorkQueue(
 			u4PacketFilter |= PARAM_PACKET_FILTER_MULTICAST;
 	}
 
-	up(&g_halt_sem);
+	kalHaltUnlock();
 
 	if (kalIoctl(prGlueInfo,
 		     wlanoidSetCurrentPacketFilter,
@@ -1249,9 +1249,12 @@ static void wlanSetMulticastListWorkQueue(
 		uint8_t *prMCAddrList = NULL;
 		uint32_t i = 0;
 
-		down(&g_halt_sem);
-		if (g_u4HaltFlag) {
-			up(&g_halt_sem);
+		if (kalHaltLock(KAL_HALT_LOCK_TIMEOUT_NORMAL_CASE))
+			return;
+
+		if (kalIsHalted()) {
+			DBGLOG(INIT, WARN, "wlan is halt skip wlansetMulticastListWorkQueue!\n");
+			kalHaltUnlock();
 			return;
 		}
 
@@ -1259,6 +1262,7 @@ static void wlanSetMulticastListWorkQueue(
 					   VIR_MEM_TYPE);
 		if (!prMCAddrList) {
 			DBGLOG(INIT, WARN, "prMCAddrList memory alloc fail!\n");
+			kalHaltUnlock();
 			return;
 		}
 
@@ -1274,8 +1278,8 @@ static void wlanSetMulticastListWorkQueue(
 		}
 
 		netif_addr_unlock_bh(prDev);
+		kalHaltUnlock();
 
-		up(&g_halt_sem);
 
 		kalIoctl(prGlueInfo,
 			 wlanoidSetMulticastList, prMCAddrList, (i * ETH_ALEN),
@@ -2155,8 +2159,6 @@ static void wlanCreateWirelessDevice(void)
 	prWiphy->wext = &wext_handler_def;
 #endif
 #endif
-	/* initialize semaphore for halt control */
-	sema_init(&g_halt_sem, 1);
 
 #if CFG_ENABLE_UNIFY_WIPHY
 	prWiphy->iface_combinations = p_mtk_iface_combinations_p2p;
@@ -3708,7 +3710,6 @@ static int32_t wlanOnPreNetRegister(struct GLUE_INFO *prGlueInfo,
 		else
 			prWdev->wiphy->bands[KAL_BAND_5GHZ] = &mtk_band_5ghz;
 
-		g_u4HaltFlag = 0;
 
 #if CFG_SUPPORT_BUFFER_MODE
 #if (CFG_EFUSE_BUFFER_MODE_DELAY_CAL == 1)
@@ -4051,7 +4052,6 @@ static int32_t wlanOffAtReset(void)
 
 	flush_delayed_work(&sched_workq);
 
-	down(&g_halt_sem);
 
 	/* 4 <2> Mark HALT, notify main thread to stop, and clean up queued
 	 *	 requests
@@ -4071,8 +4071,6 @@ static int32_t wlanOffAtReset(void)
 
 	/* 4 <x> Stopping handling interrupt and free IRQ */
 	glBusFreeIrq(prDev, prGlueInfo);
-
-	up(&g_halt_sem);
 
 #if (CFG_SUPPORT_TRACE_TC4 == 1)
 	wlanDebugTC4Uninit();
@@ -4530,6 +4528,7 @@ static int32_t wlanProbe(void *pvData, void *pvDriverData)
 /*----------------------------------------------------------------------------*/
 static void wlanRemove(void)
 {
+#define KAL_WLAN_REMOVE_TIMEOUT_MSEC			3000
 	struct net_device *prDev = NULL;
 	struct WLANDEV_INFO *prWlandevInfo = NULL;
 	struct GLUE_INFO *prGlueInfo = NULL;
@@ -4547,9 +4546,6 @@ static void wlanRemove(void)
 			return;
 	}
 #endif
-
-	kalSetHalted(TRUE);
-
 	/* 4 <0> Sanity check */
 	ASSERT(u4WlanDevNum <= CFG_MAX_WLAN_DEVICES);
 	if (u4WlanDevNum == 0) {
@@ -4622,9 +4618,12 @@ static void wlanRemove(void)
 	/* 20150205 work queue for sched_scan */
 
 	flush_delayed_work(&sched_workq);
+	if (kalHaltLock(KAL_WLAN_REMOVE_TIMEOUT_MSEC) == -ETIME) {
+		DBGLOG(INIT, ERROR, "Halt Lock, need OidComplete.\n");
+		kalOidComplete(prGlueInfo, FALSE, 0, WLAN_STATUS_NOT_ACCEPTED);
+	}
+	kalSetHalted(TRUE);
 
-	down(&g_halt_sem);
-	g_u4HaltFlag = 1;
 
 	/* 4 <2> Mark HALT, notify main thread to stop, and clean up queued
 	 *       requests
@@ -4688,8 +4687,7 @@ static void wlanRemove(void)
 
 	/* 4 <5> Release the Bus */
 	glBusRelease(prDev);
-
-	up(&g_halt_sem);
+	kalHaltUnlock();
 
 	flush_work(&prGlueInfo->rDrvWork.rWork); /* fos_change oneline */
 

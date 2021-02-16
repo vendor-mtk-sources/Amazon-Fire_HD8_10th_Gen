@@ -36,6 +36,7 @@
 
 #define CODEC_MAX_BUFFER 512U
 #define CODEC_ALLOCATE_MAX_BUFFER_SIZE 0x8000000UL /*128MB*/
+#define CODEC_MSK(addr) ((addr >> PAGE_SHIFT) & 0xFFFF)
 
 /**
  * struct mtk_vcu_mem - memory buffer allocated in kernel
@@ -48,6 +49,12 @@ struct mtk_vcu_mem {
 	size_t size;
 };
 
+struct vcu_pa_pages {
+	unsigned long pa;
+	unsigned long kva;
+	struct list_head list;
+};
+
 /**
  * struct mtk_vcu_queue - the allocated buffer queue
  *
@@ -57,6 +64,7 @@ struct mtk_vcu_mem {
  * @num_buffers:        allocated buffer number
  * @mem_ops:    the file operation of memory allocated
  * @bufs:       store the information of allocated buffers
+ * @map_buf_pa: store map pa and it's flag
  */
 struct mtk_vcu_queue {
 	void *vcu;
@@ -65,8 +73,8 @@ struct mtk_vcu_queue {
 	unsigned int num_buffers;
 	const struct vb2_mem_ops *mem_ops;
 	struct mtk_vcu_mem bufs[CODEC_MAX_BUFFER];
-	int map_buf;
-	int map_type;
+	uint64_t map_buf_pa;
+	struct vcu_pa_pages pa_pages;
 };
 
 /**

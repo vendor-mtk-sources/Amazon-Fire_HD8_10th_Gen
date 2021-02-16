@@ -30,6 +30,7 @@
  * @dev         : platform device of VCU
  * @wq          : wait queue to wait VCU message ack
  * @handler     : ipi handler for each decoder
+ * @abort       : abort when vpud crashed stop this instance ipi_msg
  */
 struct vdec_vcu_inst {
 	enum ipi_id id;
@@ -42,6 +43,7 @@ struct vdec_vcu_inst {
 	wait_queue_head_t wq;
 	ipi_handler_t handler;
 	bool abort;
+	int daemon_pid;
 };
 
 /**

@@ -2226,8 +2226,10 @@ void halDeAggRxPktWorker(struct work_struct *work)
 	KAL_SPIN_LOCK_DECLARATION();
 	SDIO_TIME_INTERVAL_DEC();
 
-	if (g_u4HaltFlag)
+	if (kalIsHalted()) {
+		DBGLOG(RX, ERROR,"wlan is halt skip DeAgg\n");
 		return;
+	}
 
 	prGlueInfo = ENTRY_OF(work, struct GLUE_INFO, rRxPktDeAggWork);
 	prHifInfo = &prGlueInfo->rHifInfo;
@@ -2268,7 +2270,6 @@ void halDeAggRxPktWorker(struct work_struct *work)
 			/* Reschedule this work */
 			if ((prGlueInfo->ulFlag & GLUE_FLAG_HALT) == 0)
 				schedule_delayed_work(&prAdapter->prGlueInfo->rRxPktDeAggWork, 0);
-
 			return;
 		}
 

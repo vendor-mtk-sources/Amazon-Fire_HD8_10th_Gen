@@ -55,7 +55,7 @@ int display_bias_enable(void)
 
 	display_bias_regulator_init();
 
-#if defined(JD936X_WXGA_DSI_VDO_ONYX) || (defined(ILI9881C_WXGA_DSI_VDO_ONYX))
+#if defined(JD936X_WXGA_DSI_VDO_ONYX) || (defined(ILI9881C_WXGA_DSI_VDO_ONYX)) || (defined(SC7705_WXGA_DSI_VDO_ONYX))
 	/* set voltage with min & max*/
 	ret = regulator_set_voltage(disp_bias_pos, 6000000, 6000000);
 	if (ret < 0)

@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
@@ -122,6 +123,8 @@ static const unsigned long vcu_map_hw_type[VCU_MAP_HW_REG_NUM] = {
 	0x71000000, /* VENC */
 	0x72000000  /* VENC_LT */
 };
+
+#define MAP_PA_BASE_1GB  0x40000000 /* < 1GB registers */
 
 /* Default vcu_mtkdev[0] handle vdec, vcu_mtkdev[1] handle mdp */
 static struct mtk_vcu *vcu_mtkdev[MTK_VCU_NR_MAX];
@@ -281,6 +284,7 @@ struct gce_callback_data {
 	struct gce_cmdq_obj cmdq_buff;
 	struct mtk_vcu *vcu_ptr;
 	struct cmdq_pkt *pkt_ptr;
+	struct mtk_vcu_queue *vcu_queue;
 };
 
 static inline bool vcu_running(struct mtk_vcu *vcu)
@@ -294,19 +298,28 @@ int vcu_ipi_register(struct platform_device *pdev,
 {
 	struct mtk_vcu *vcu = platform_get_drvdata(pdev);
 	struct vcu_ipi_desc *ipi_desc;
+	int i = 0;
 
 	if (vcu == NULL) {
 		dev_err(&pdev->dev, "vcu device in not ready\n");
 		return -EPROBE_DEFER;
 	}
+	if (id < IPI_VCU_INIT || id >= IPI_MAX) {
+		dev_info(&pdev->dev, "[VCU] failed to register ipi message (Invalid arg.)\n");
+		return -EINVAL;
+	}
+	i = ipi_id_to_inst_id(id);
+	mutex_lock(&vcu->vcu_mutex[i]);
 
 	if (id >= IPI_VCU_INIT && id < IPI_MAX && handler != NULL) {
 		ipi_desc = vcu->ipi_desc;
 		ipi_desc[id].name = name;
 		ipi_desc[id].handler = handler;
 		ipi_desc[id].priv = priv;
+		mutex_unlock(&vcu->vcu_mutex[i]);
 		return 0;
 	}
+	mutex_unlock(&vcu->vcu_mutex[i]);
 
 	dev_err(&pdev->dev, "register vcu ipi id %d with invalid arguments\n",
 		id);
@@ -315,11 +328,12 @@ int vcu_ipi_register(struct platform_device *pdev,
 EXPORT_SYMBOL_GPL(vcu_ipi_register);
 
 int vcu_ipi_send(struct platform_device *pdev, enum ipi_id id, void *buf,
-		 unsigned int len)
+		 unsigned int len, void *priv)
 {
 	int i = 0;
 	int vcuid;
 	struct mtk_vcu *vcu = platform_get_drvdata(pdev);
+	struct vcu_ipi_desc *ipi_desc;
 	struct share_obj send_obj;
 	mm_segment_t old_fs;
 	unsigned long timeout;
@@ -372,6 +386,12 @@ int vcu_ipi_send(struct platform_device *pdev, enum ipi_id id, void *buf,
 
 	mutex_lock(&vcu->vcu_mutex[i]);
 	vcu->ipi_id_ack[id] = false;
+
+	if (id >= IPI_VCU_INIT && id < IPI_MAX) {
+		ipi_desc = vcu->ipi_desc;
+		ipi_desc[id].priv = priv;
+	}
+
 	/* send the command to VCU */
 	if (!vcu->fuse_bypass) {
 		old_fs = get_fs();
@@ -500,18 +520,66 @@ static int vcu_log_get(struct mtk_vcu *vcu, unsigned long arg)
 	return ret;
 }
 
+static int vcu_check_gce_pa_base(struct mtk_vcu_queue *vcu_queue,
+				u64 addr, u64 length)
+{
+	struct vcu_pa_pages *tmp;
+	struct list_head *p, *q;
+
+	list_for_each_safe(p, q, &vcu_queue->pa_pages.list) {
+		tmp = list_entry(p, struct vcu_pa_pages, list);
+		if (addr >= (u64)tmp->pa &&
+			addr + length <= (u64)tmp->pa + PAGE_SIZE)
+			return 0;
+	}
+	pr_info("%s addr %llx length %llx not found!\n",
+		__func__, addr, length);
+
+	return -EINVAL;
+}
+
+static int vcu_check_reg_base(struct mtk_vcu *vcu,
+				u64 addr, u64 length)
+{
+	int i;
+
+	if (vcu->vcuid != 0 && addr >= MAP_PA_BASE_1GB)
+		return -EINVAL;
+
+	for (i = 0; i < (int)VCU_MAP_HW_REG_NUM; i++)
+		if (addr >= (u64)vcu->map_base[i].base &&
+			addr + length <=
+			(u64)vcu->map_base[i].base + vcu->map_base[i].len)
+			return 0;
+	pr_info("%s addr %llx length %llx not found!\n",
+		__func__, addr, length);
+
+	return -EINVAL;
+}
 static void vcu_set_gce_cmd(struct cmdq_pkt *pkt, struct mtk_vcu *vcu,
-			    unsigned char cmd, u64 addr, u64 data, u32 mask)
+				struct mtk_vcu_queue *q, unsigned char cmd,
+				u64 addr, u64 data, u32 mask)
 {
 	switch (cmd) {
 	case CMD_READ:
-		cmdq_pkt_read_addr(pkt, addr, CMDQ_THR_SPR_IDX1);
+		if (vcu_check_reg_base(vcu, addr, 4) == 0)
+			cmdq_pkt_read_addr(pkt, addr, CMDQ_THR_SPR_IDX1);
+		else
+			pr_info("[VCU] CMD_READ wrong addr: 0x%llx\n", addr);
 		break;
 	case CMD_WRITE:
-		cmdq_pkt_write(pkt, vcu->clt_base, addr, data, mask);
+		if (vcu_check_reg_base(vcu, addr, 4) == 0)
+			cmdq_pkt_write(pkt, vcu->clt_base, addr, data, mask);
+		else
+			pr_info("[VCU] CMD_WRITE wrong addr: 0x%llx 0x%llx 0x%x\n",
+				addr, data, mask);
 		break;
 	case CMD_POLL_REG:
-		cmdq_pkt_poll_addr(pkt, data, addr, mask, CMDQ_GPR_R10);
+		if (vcu_check_reg_base(vcu, addr, 4) == 0)
+			cmdq_pkt_poll_addr(pkt, data, addr, mask, CMDQ_GPR_R10);
+		else
+			pr_info("[VCU] CMD_POLL_REG wrong addr: 0x%llx 0x%llx 0x%x\n",
+				addr, data, mask);
 		break;
 	case CMD_WAIT_EVENT:
 		if (data < GCE_EVENT_MAX)
@@ -521,8 +589,14 @@ static void vcu_set_gce_cmd(struct cmdq_pkt *pkt, struct mtk_vcu *vcu,
 				__func__, data);
 		break;
 	case CMD_MEM_MV:
-		cmdq_pkt_mem_move(pkt, vcu->clt_base, addr, data,
-				  CMDQ_THR_SPR_IDX1);
+		if ((vcu_check_reg_base(vcu, addr, 4) == 0 ||
+			vcu_check_gce_pa_base(q, addr, 4) == 0) &&
+			vcu_check_gce_pa_base(q, data, 4) == 0)
+			cmdq_pkt_mem_move(pkt, vcu->clt_base, addr, data,
+					CMDQ_THR_SPR_IDX1);
+		else
+			pr_info("[VCU] CMD_MEM_MV wrong addr/data: 0x%llx 0x%llx\n",
+				addr, data);
 		break;
 	default:
 		pr_debug("[VCU] unknown GCE cmd %d\n", cmd);
@@ -565,7 +639,8 @@ static void vcu_gce_flush_callback(struct cmdq_cb_data data)
 
 }
 
-static int vcu_gce_cmd_flush(struct mtk_vcu *vcu, unsigned long arg)
+static int vcu_gce_cmd_flush(struct mtk_vcu *vcu,
+	struct mtk_vcu_queue *q, unsigned long arg)
 {
 	int i = 0, ret;
 	int vcuid;
@@ -652,7 +727,7 @@ static int vcu_gce_cmd_flush(struct mtk_vcu *vcu, unsigned long arg)
 		ret = -EINVAL;
 	}
 	for (i = 0; i < cmds->cmd_cnt; i++) {
-		vcu_set_gce_cmd(pkt_ptr, vcu, cmds->cmd[i],
+		vcu_set_gce_cmd(pkt_ptr, vcu, q, cmds->cmd[i],
 			cmds->addr[i], cmds->data[i],
 			cmds->mask[i]);
 	}
@@ -989,6 +1064,7 @@ static int mtk_vcu_open(struct inode *inode, struct file *file)
 	vcu_mtkdev[vcuid]->vcuid = vcuid;
 
 	vcu_queue = mtk_vcu_dec_init(vcu_mtkdev[vcuid]->dev);
+	INIT_LIST_HEAD(&vcu_queue->pa_pages.list);
 	vcu_queue->vcu = vcu_mtkdev[vcuid];
 	file->private_data = vcu_queue;
 
@@ -1066,6 +1142,7 @@ static int mtk_vcu_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned long length = vma->vm_end - vma->vm_start;
 	unsigned long pa_start = vma->vm_pgoff << PAGE_SHIFT;
+	unsigned long pa_start_base = pa_start;
 	unsigned long pa_end = pa_start + length;
 	int i;
 #ifdef CONFIG_MTK_IOMMU_V2
@@ -1080,44 +1157,63 @@ static int mtk_vcu_mmap(struct file *file, struct vm_area_struct *vma)
 	pr_debug("[VCU] vma->start 0x%lx, vma->end 0x%lx, vma->pgoff 0x%lx\n",
 		 vma->vm_start, vma->vm_end, vma->vm_pgoff);
 
-	if (vcu_queue->map_type == 0) {
+	// First handle map pa case, because maybe pa will smaller than
+	// MAP_PA_BASE_1GB in 32bit project
+	if (vcu_queue->map_buf_pa >= MAP_SHMEM_PA_BASE) {
+		vcu_queue->map_buf_pa = 0;
+		if (vcu_check_gce_pa_base(vcu_queue, pa_start, length) == 0) {
+			vma->vm_pgoff = pa_start >> PAGE_SHIFT;
+			vma->vm_page_prot =
+				pgprot_writecombine(vma->vm_page_prot);
+			goto valid_map;
+		}
+		pr_info("[VCU] map pa fail with pa_start=0x%lx\n",
+			pa_start);
+		return -EINVAL;
+	}
+
 	/*only vcud need this case*/
-		if (vcu_dev->vcuid == 0) {
-			for (i = 0; i < (int)VCU_MAP_HW_REG_NUM; i++) {
-				if (pa_start == vcu_map_hw_type[i] &&
-				    length <= vcu_dev->map_base[i].len) {
-					vma->vm_pgoff =
-						vcu_dev->map_base[i].base
-						>> PAGE_SHIFT;
-					goto reg_valid_map;
-				}
+	if (vcu_dev->vcuid == 0) {
+		for (i = 0; i < (int)VCU_MAP_HW_REG_NUM; i++) {
+			if (pa_start == vcu_map_hw_type[i] &&
+				length <= vcu_dev->map_base[i].len) {
+				vma->vm_pgoff =
+					vcu_dev->map_base[i].base
+					>> PAGE_SHIFT;
+				goto reg_valid_map;
 			}
 		}
+	}
 
-		if (pa_start >= MAP_SHMEM_ALLOC_BASE
-			&& pa_end <= MAP_SHMEM_ALLOC_END) {
-			vma->vm_pgoff = (unsigned long)
-				(VCU_DMEM0_PHY(vcu_dev) >> PAGE_SHIFT);
-			goto valid_map;
-		}
+	if (pa_start >= MAP_SHMEM_ALLOC_BASE
+		&& pa_end <= MAP_SHMEM_ALLOC_END) {
+		vma->vm_pgoff = (unsigned long)
+			(VCU_DMEM0_PHY(vcu_dev) >> PAGE_SHIFT);
+		goto valid_map;
+	}
 
-		if (pa_start >= MAP_SHMEM_COMMIT_BASE &&
-		    pa_end <= MAP_SHMEM_COMMIT_END) {
-			VCU_DMEM0_VMA(vcu_dev) = vma->vm_start;
-			vma->vm_pgoff = (unsigned long)
-				(VCU_DMEM0_PHY(vcu_dev) >> PAGE_SHIFT);
-			goto valid_map;
-		}
-	} else if (vcu_queue->map_type == 1
-	    || vcu_queue->map_type == 2) {
-#ifdef CONFIG_MTK_IOMMU_V2
+	if (pa_start >= MAP_SHMEM_COMMIT_BASE &&
+		pa_end <= MAP_SHMEM_COMMIT_END) {
+		VCU_DMEM0_VMA(vcu_dev) = vma->vm_start;
+		vma->vm_pgoff = (unsigned long)
+			(VCU_DMEM0_PHY(vcu_dev) >> PAGE_SHIFT);
+		goto valid_map;
+	}
+	if (pa_start_base >= MAP_SHMEM_MM_BASE &&
+		pa_start_base < MAP_SHMEM_PA_BASE) {
+		if (pa_start_base >= MAP_SHMEM_MM_CACHEABLE_BASE)
+			pa_start -= MAP_SHMEM_MM_CACHEABLE_BASE;
+		else
+			pa_start -= MAP_SHMEM_MM_BASE;
+#if defined CONFIG_MTK_IOMMU_V2
 		while (length > 0) {
 			vma->vm_pgoff = iommu_iova_to_phys(vcu_dev->io_domain,
 							   pa_start + pos);
 			vma->vm_pgoff >>= PAGE_SHIFT;
-			if (vcu_queue->map_type == 1)
+			if (pa_start_base < MAP_SHMEM_MM_CACHEABLE_BASE) {
 				vma->vm_page_prot =
 					pgprot_writecombine(vma->vm_page_prot);
+			}
 			if (remap_pfn_range(vma, start, vma->vm_pgoff,
 				PAGE_SIZE,
 				vma->vm_page_prot) == true)
@@ -1132,12 +1228,6 @@ static int mtk_vcu_mmap(struct file *file, struct vm_area_struct *vma)
 		}
 		return 0;
 #endif
-	} else if (vcu_queue->map_type == 3) {
-		vma->vm_pgoff = pa_start >> PAGE_SHIFT;
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-		goto valid_map;
-	} else {
-		dev_dbg(vcu_dev->dev, "map_type: %d\n", vcu_queue->map_type);
 	}
 
 	dev_dbg(vcu_dev->dev, "[VCU] Invalid argument\n");
@@ -1164,13 +1254,15 @@ static long mtk_vcu_unlocked_ioctl(struct file *file, unsigned int cmd,
 	long ret = -1;
 	void *mem_priv;
 	unsigned char *user_data_addr = NULL;
+	dma_addr_t temp_pa = 0;
 	struct mtk_vcu *vcu_dev;
 	struct device *dev;
-	struct map_obj mem_map_obj;
 	struct share_obj share_buff_data;
 	struct mem_obj mem_buff_data;
 	struct mtk_vcu_queue *vcu_queue =
 		(struct mtk_vcu_queue *)file->private_data;
+	struct vcu_pa_pages *tmp;
+	struct list_head *p, *q;
 
 	vcu_dev = (struct mtk_vcu *)vcu_queue->vcu;
 	dev = vcu_dev->dev;
@@ -1195,19 +1287,6 @@ static long mtk_vcu_unlocked_ioctl(struct file *file, unsigned int cmd,
 				 __func__, __LINE__);
 			return -EINVAL;
 		}
-		break;
-	case VCU_SET_MMAP_TYPE:
-		user_data_addr = (unsigned char *)arg;
-		ret = (long)copy_from_user(&mem_map_obj, user_data_addr,
-			(unsigned long)sizeof(mem_map_obj));
-
-		if (ret != 0L) {
-			pr_debug("[VCU] %s(%d) Copy data from user failed!\n",
-				__func__, __LINE__);
-			return -EINVAL;
-		}
-		vcu_queue->map_buf = mem_map_obj.map_buf;
-		vcu_queue->map_type = mem_map_obj.map_type;
 		break;
 	case VCU_GET_OBJECT:
 		ret = vcu_ipi_get(vcu_dev, arg);
@@ -1234,12 +1313,19 @@ static long mtk_vcu_unlocked_ioctl(struct file *file, unsigned int cmd,
 				mtk_vcu_get_buffer(vcu_queue, &mem_buff_data);
 			mem_buff_data.pa = 0;
 		} else {
-			mem_priv = cmdq_mbox_buf_alloc(dev,
-				(dma_addr_t *)&mem_buff_data.pa);
-			mem_buff_data.va = (uint64_t)(unsigned long)mem_priv;
+			mem_priv =
+				cmdq_mbox_buf_alloc(dev, &temp_pa);
+			mem_buff_data.va = (unsigned long)mem_priv;
+			mem_buff_data.pa = (unsigned long)temp_pa;
 			mem_buff_data.iova = 0;
+			tmp = kmalloc(sizeof(struct vcu_pa_pages), GFP_KERNEL);
+			if (!tmp)
+				return -ENOMEM;
+			tmp->pa = temp_pa;
+			tmp->kva = (unsigned long)mem_priv;
+			list_add_tail(&tmp->list, &vcu_queue->pa_pages.list);
 		}
-
+		mem_buff_data.va = CODEC_MSK(mem_buff_data.va);
 		pr_debug("[VCU] VCU_ALLOCATION %d va %llx, pa %llx, iova %x\n",
 			 cmd == VCU_MVA_ALLOCATION, mem_buff_data.va,
 			 mem_buff_data.pa, mem_buff_data.iova);
@@ -1256,6 +1342,11 @@ static long mtk_vcu_unlocked_ioctl(struct file *file, unsigned int cmd,
 				 __func__, __LINE__);
 			return -EINVAL;
 		}
+
+		/* store map pa buffer type flag which will use in mmap*/
+		if (cmd == VCU_PA_ALLOCATION)
+			vcu_queue->map_buf_pa = temp_pa + MAP_SHMEM_PA_BASE;
+
 		ret = 0;
 		break;
 	case VCU_MVA_FREE:
@@ -1278,10 +1369,20 @@ static long mtk_vcu_unlocked_ioctl(struct file *file, unsigned int cmd,
 		}
 		if (cmd == VCU_MVA_FREE)
 			ret = mtk_vcu_free_buffer(vcu_queue, &mem_buff_data);
-		else
-			cmdq_mbox_buf_free(dev,
-				(void *)(unsigned long)mem_buff_data.va,
-				(dma_addr_t)mem_buff_data.pa);
+		else {
+			ret = -1;
+			list_for_each_safe(p, q, &vcu_queue->pa_pages.list) {
+				tmp = list_entry(p, struct vcu_pa_pages, list);
+				if (tmp->pa == mem_buff_data.pa) {
+					ret = 0;
+					cmdq_mbox_buf_free(dev,
+						(void *)tmp->kva,
+						(dma_addr_t)mem_buff_data.pa);
+					list_del(p);
+					kfree(tmp);
+				}
+			}
+		}
 
 		pr_debug("[VCU] VCU_FREE %d va %llx, pa %llx, iova %x\n",
 			 cmd == VCU_MVA_FREE, mem_buff_data.va,
@@ -1339,7 +1440,7 @@ static long mtk_vcu_unlocked_ioctl(struct file *file, unsigned int cmd,
 		ret = 0;
 		break;
 	case VCU_GCE_SET_CMD_FLUSH:
-		ret = vcu_gce_cmd_flush(vcu_dev, arg);
+		ret = vcu_gce_cmd_flush(vcu_dev, vcu_queue, arg);
 		break;
 	case VCU_GCE_WAIT_CALLBACK:
 		ret = vcu_wait_gce_callback(vcu_dev, arg);
@@ -1406,7 +1507,6 @@ static long mtk_vcu_unlocked_compat_ioctl(struct file *file, unsigned int cmd,
 	case VCU_GET_LOG_OBJECT:
 	case VCU_GCE_SET_CMD_FLUSH:
 	case VCU_GCE_WAIT_CALLBACK:
-	case VCU_SET_MMAP_TYPE:
 		share_data32 = compat_ptr((uint32_t)arg);
 		ret = file->f_op->unlocked_ioctl(file, cmd,
 						 (unsigned long)share_data32);

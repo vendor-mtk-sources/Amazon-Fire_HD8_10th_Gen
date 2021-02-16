@@ -100,8 +100,6 @@
 extern int allocatedMemSize;
 #endif
 
-extern struct semaphore g_halt_sem;
-extern int g_u4HaltFlag;
 
 extern struct delayed_work sched_workq;
 
@@ -1043,6 +1041,8 @@ do { \
 	} \
 }
 #endif
+
+#define KAL_HALT_LOCK_TIMEOUT_NORMAL_CASE		3000 /* 3s */
 
 /*******************************************************************************
  *                  F U N C T I O N   D E C L A R A T I O N S

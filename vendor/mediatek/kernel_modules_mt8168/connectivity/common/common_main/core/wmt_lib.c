@@ -699,6 +699,11 @@ static MTK_WCN_BOOL wmt_lib_ps_action(MTKSTP_PSM_ACTION_T action)
 	UINT32 u4Wait;
 	P_OSAL_SIGNAL pSignal;
 
+	if (mtk_wcn_stp_is_wmt_last_close() == 1) {
+		WMT_ERR_FUNC("wmt_close, skip ps action!\n");
+		return MTK_WCN_BOOL_FALSE;
+	}
+
 	lxop = wmt_lib_get_free_op();
 	if (!lxop) {
 		WMT_DBG_FUNC("get_free_lxop fail\n");

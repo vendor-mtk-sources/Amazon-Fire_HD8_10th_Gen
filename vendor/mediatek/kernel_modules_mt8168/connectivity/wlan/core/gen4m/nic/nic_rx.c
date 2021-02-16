@@ -1868,6 +1868,24 @@ void nicRxProcessDataPacket(IN struct ADAPTER *prAdapter,
 		}
 #endif
 	}
+	/* Drop plain text during security connection */
+	if (!fgDrop && HAL_RX_STATUS_IS_CIPHER_MISMATCH(prRxStatus)) {
+		uint16_t *pu2EtherType;
+		pu2EtherType = (uint16_t *)
+		((uint8_t *)prSwRfb->pvHeader + 2 * MAC_ADDR_LEN);
+
+		nicRxFillRFB(prAdapter, prSwRfb);
+
+		if (prSwRfb->u2HeaderLen >= ETH_HLEN
+			&& (*pu2EtherType != NTOHS(ETH_P_1X)
+#if CFG_SUPPORT_WAPI
+			|| (*pu2EtherType != NTOHS(ETH_WPI_1X))
+#endif
+				)) {
+				fgDrop = TRUE;
+			}
+		DBGLOG(RSN, INFO, "HAL_RX_STATUS_IS_CIPHER_MISMATCH fgDrop =%d\n", fgDrop);
+	}
 
 #if CFG_TCP_IP_CHKSUM_OFFLOAD || CFG_TCP_IP_CHKSUM_OFFLOAD_NDIS_60
 	if (prAdapter->fgIsSupportCsumOffload && fgDrop == FALSE)

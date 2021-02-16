@@ -1442,14 +1442,16 @@ kalIndicateStatusAndComplete(IN struct GLUE_INFO
 		break;
 
 	case WLAN_STATUS_MEDIA_DISCONNECT:
-	case WLAN_STATUS_MEDIA_DISCONNECT_LOCALLY:
 #ifdef CFG_SUPPORT_LINK_QUALITY_MONITOR
 		/* clear the count */
 		prGlueInfo->prAdapter->rLinkQualityInfo.u4TxTotalCount = 0;
 		prGlueInfo->prAdapter->rLinkQualityInfo.u4RxTotalCount = 0;
 #endif
 		/* indicate disassoc event */
-		wext_indicate_wext_event(prGlueInfo, SIOCGIWAP, NULL, 0);
+		if(prGlueInfo->eParamMediaStateIndicated != PARAM_MEDIA_STATE_DISCONNECTED_LOCALLY) {
+					wext_indicate_wext_event(prGlueInfo, SIOCGIWAP, NULL, 0);
+					netif_carrier_off(prGlueInfo->prDevHandler);
+				}
 		/* For CR 90 and CR99, While supplicant do reassociate, driver
 		 * will do netif_carrier_off first,
 		 * after associated success, at joinComplete(),
@@ -1464,8 +1466,6 @@ kalIndicateStatusAndComplete(IN struct GLUE_INFO
 		DBGLOG(INIT, INFO, "[wifi] %s netif_carrier_off\n",
 		       prGlueInfo->prDevHandler->name);
 #endif
-
-		netif_carrier_off(prGlueInfo->prDevHandler);
 
 /* fos_change begin */
 #if CFG_SUPPORT_WIFI_POWER_DEBUG
@@ -1548,6 +1548,23 @@ kalIndicateStatusAndComplete(IN struct GLUE_INFO
 		/* Check SAP channel */
 		p2pFuncSwitchSapChannel(prAdapter);
 #endif  /* fos_change oneline */
+		break;
+
+	case WLAN_STATUS_MEDIA_DISCONNECT_LOCALLY:
+		/* indicate disassoc event */
+		wext_indicate_wext_event(prGlueInfo, SIOCGIWAP, NULL, 0);
+		/* For CR 90 and CR99, While supplicant do reassociate, driver will do netif_carrier_off first,
+		   after associated success, at joinComplete(), do netif_carier_on,
+		   but for unknown reason, the supplicant 1x pkt will not called the driver
+		   hardStartXmit, for template workaround these bugs, add this compiling flag
+		 */
+		/* switch netif off */
+
+		DBGLOG(AIS, INFO, "[wifi] %s netif_carrier_off locally\n",
+				    prGlueInfo->prDevHandler->name);
+
+		netif_carrier_off(prGlueInfo->prDevHandler);
+
 		break;
 
 	case WLAN_STATUS_SCAN_COMPLETE:
@@ -2852,24 +2869,32 @@ kalIoctl(IN struct GLUE_INFO *prGlueInfo,
 
 	/* GLUE_SPIN_LOCK_DECLARATION(); */
 	ASSERT(prGlueInfo);
-
 	/* <1> Check if driver is halt */
-	/* if (prGlueInfo->u4Flag & GLUE_FLAG_HALT) { */
-	/* return WLAN_STATUS_ADAPTER_NOT_READY; */
-	/* } */
+		/* if (prGlueInfo->u4Flag & GLUE_FLAG_HALT) { */
+		/* return WLAN_STATUS_ADAPTER_NOT_READY; */
+		/* } */
 
-	if (down_interruptible(&g_halt_sem))
+	/*
+	 * if wait longer than double OID timeout timer, then will show backtrace who held halt lock.
+	 * at this case, we will return kalIoctl failure because tx_thread may be hung
+	 */
+	if (kalHaltLock(2 * WLAN_OID_TIMEOUT_THRESHOLD))
 		return WLAN_STATUS_FAILURE;
 
-	if (g_u4HaltFlag) {
-		up(&g_halt_sem);
+	if (kalIsHalted()) {
+		kalHaltUnlock();
 		return WLAN_STATUS_ADAPTER_NOT_READY;
 	}
 
 	if (down_interruptible(&prGlueInfo->ioctl_sem)) {
-		up(&g_halt_sem);
+		kalHaltUnlock();
 		return WLAN_STATUS_FAILURE;
 	}
+	rHaltCtrl.fgHeldByKalIoctl = TRUE;
+	/* <2> TODO: thread-safe */
+
+	/* <3> point to the OidEntry of Glue layer */
+
 
 	/* <2> TODO: thread-safe */
 
@@ -2950,7 +2975,8 @@ kalIoctl(IN struct GLUE_INFO *prGlueInfo,
 	clear_bit(GLUE_FLAG_OID_BIT, &prGlueInfo->ulFlag);
 
 	up(&prGlueInfo->ioctl_sem);
-	up(&g_halt_sem);
+	rHaltCtrl.fgHeldByKalIoctl = FALSE;
+	kalHaltUnlock();
 
 	return ret;
 }
@@ -6511,8 +6537,10 @@ void kalFreeTxMsduWorker(struct work_struct *work)
 	struct QUE *prTmpQue = &rTmpQue;
 	struct MSDU_INFO *prMsduInfo;
 
-	if (g_u4HaltFlag)
+	if (kalIsHalted()) {
+		DBGLOG(INIT, ERROR,"wlan is halt skip kalFreeTxMsdu!\n");
 		return;
+	}
 
 	prGlueInfo = ENTRY_OF(work, struct GLUE_INFO,
 			      rTxMsduFreeWork);

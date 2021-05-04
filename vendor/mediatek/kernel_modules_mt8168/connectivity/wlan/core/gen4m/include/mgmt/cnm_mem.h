@@ -214,7 +214,12 @@ struct SEC_INFO {
 
 /* Fragment information structure */
 struct FRAG_INFO {
-	uint16_t u2NextFragSeqCtrl;
+	uint16_t u2SeqNo;
+	uint8_t ucNextFragNo;
+#if CFG_SUPPORT_FRAG_ATTACK_DETECTION
+	uint8_t ucSecMode;
+	uint64_t u8NextPN;
+#endif /* CFG_SUPPORT_FRAG_ATTACK_DETECTION */
 	uint8_t *pucNextFragStart;
 	struct SW_RFB *pr1stFrag;
 
@@ -496,6 +501,10 @@ struct STA_RECORD {
 	uint16_t au2CachedSeqCtrl[TID_NUM + 1];
 
 	u_int8_t afgIsIgnoreAmsduDuplicate[TID_NUM + 1];
+#if CFG_SUPPORT_AMSDU_ATTACK_DETECTION
+	uint16_t au2AmsduInvalidSN[TID_NUM + 1];
+	u_int8_t afgIsAmsduInvalid[TID_NUM + 1];
+#endif /* CFG_SUPPORT_AMSDU_ATTACK_DETECTION */
 
 #if 0
 	/* RXM */

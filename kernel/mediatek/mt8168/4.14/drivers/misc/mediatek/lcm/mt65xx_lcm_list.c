@@ -898,7 +898,7 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 #endif
 
 #if defined(SC7705_WXGA_DSI_VDO_ONYX)
-	&sc7705_wxga_dsi_vdo_sitr_kd_hsd_onyx_lcm_drv
+	&sc7705_wxga_dsi_vdo_sitr_kd_boe_onyx_lcm_drv
 #endif
 
 #if defined(JD936X_WXGA_DSI_VDO_PEREGRINE)

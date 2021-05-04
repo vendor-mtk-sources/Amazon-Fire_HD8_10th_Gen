@@ -252,7 +252,7 @@ static const struct iw_priv_args rIwPrivTable[] = {
 	"get_exp_stat" },
 #endif
 	{PRIV_CMD_SHOW_CHANNEL, 0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	"show_channel"},
+	"show_Channel"},
 #if CFG_SUPPORT_SHOW_SETTINGS
 	{PRIV_CMD_SHOW_SETTINGS, 0, IW_PRIV_TYPE_CHAR | 2000,
 	"show_settings" },

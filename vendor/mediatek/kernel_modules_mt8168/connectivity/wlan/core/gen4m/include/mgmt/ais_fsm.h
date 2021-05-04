@@ -107,6 +107,8 @@
 #define AIS_WAIT_OKC_PMKID_SEC              1000 /* unit: ms */
 /* Support AP Selection*/
 #define AIS_BLACKLIST_TIMEOUT               15 /* seconds */
+#define AIS_AUTORN_MIN_INTERVAL		    20
+
 
 /*******************************************************************************
  *                             D A T A   T Y P E S
@@ -389,6 +391,11 @@ void aisFsmRunEventJoinComplete(IN struct ADAPTER
 
 enum ENUM_AIS_STATE aisFsmJoinCompleteAction(
 	IN struct ADAPTER *prAdapter, IN struct MSG_HDR *prMsgHdr);
+
+#if defined(CONFIG_AMAZON_METRICS_LOG) || defined(CONFIG_AMZN_METRICS_LOG)
+void aisNotifyAutoReconnectMetic(IN struct BSS_INFO *prAisBssInfo,
+	IN struct STA_RECORD *prStaRec, uint8_t bConnect);
+#endif
 
 void aisFsmRunEventFoundIBSSPeer(IN struct ADAPTER
 				 *prAdapter, IN struct MSG_HDR *prMsgHdr);

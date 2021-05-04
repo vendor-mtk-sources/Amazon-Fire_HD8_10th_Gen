@@ -234,6 +234,33 @@ int ddp_dsi_write_lcm_cmdq(enum DISP_MODULE_ENUM module,
 		unsigned char cmd, unsigned char count,
 		unsigned char *para_list);
 
+void ddp_dsi_write_lcm_register_cmdq(enum DISP_MODULE_ENUM module,
+	struct cmdqRecStruct *cmdq,
+	struct LCM_setting_table_V4 *para_tbl,
+	unsigned int index,
+	unsigned char force_update);
+extern int ddp_dsi_read_cabc_cmdq(enum DISP_MODULE_ENUM module,
+	cmdqBackupSlotHandle *read_Slot,
+	struct cmdqRecStruct *cmdq_trigger_handle,
+	struct LCM_setting_table_V4 *para_tbl,
+	unsigned int index);
+extern void primary_display_write_lcm_cmdq(
+	struct LCM_setting_table_V4 *para_tbl,
+	unsigned int size,
+	unsigned char force_update);
+extern int primary_display_read_lcm_cmdq(
+	struct LCM_setting_table_V4 *para_tbl,
+	unsigned int size,
+	unsigned char force_update);
+extern int write_lcm_lp_by_cmdq(
+	struct LCM_setting_table_V4 *para_tbl,
+	unsigned int size,
+	unsigned char force_update);
+extern int read_lcm_lp_by_cmdq(
+	struct LCM_setting_table_V4 *para_tbl,
+	unsigned int size,
+	unsigned char force_update);
+
 #ifdef __cplusplus
 }
 #endif

@@ -2541,6 +2541,9 @@ wlanoidSetAddKey(IN struct ADAPTER *prAdapter, IN void *pvSetBuffer,
 			     "[wlan] Not set the peer key while disconnect\n");
 			return WLAN_STATUS_SUCCESS;
 		}
+#if CFG_SUPPORT_FRAG_ATTACK_DETECTION		/* clear fragment cache when rekey */
+		nicRxClearFrag(prAdapter, prStaRec);
+#endif
 	}
 	prCmdInfo = cmdBufAllocateCmdInfo(prAdapter,
 				(CMD_HDR_SIZE + sizeof(struct CMD_802_11_KEY)));

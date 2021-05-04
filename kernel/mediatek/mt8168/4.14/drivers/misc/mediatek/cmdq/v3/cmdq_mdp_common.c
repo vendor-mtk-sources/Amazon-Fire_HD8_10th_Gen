@@ -1097,6 +1097,7 @@ s32 cmdq_mdp_handle_sec_setup(struct cmdqSecDataStruct *secData,
 		metadata_length)) {
 		CMDQ_AEE("CMDQ",
 			"Sec_setup Can't finish copy_from_user\n");
+		kfree(p_metadatas);
 		return -EFAULT;
 	}
 	handle->secData.addrMetadatas =

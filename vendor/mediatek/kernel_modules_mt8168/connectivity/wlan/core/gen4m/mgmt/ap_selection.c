@@ -494,16 +494,19 @@ static u_int8_t scanSanityCheckBssDesc(struct ADAPTER *prAdapter,
 			prBssDesc->eBand, prBssDesc->ucChannelNum);
 		return FALSE;
 	}
-
-	if (CHECK_FOR_TIMEOUT(kalGetTimeTick(), prBssDesc->rUpdateTime,
-		SEC_TO_SYSTIME(SCN_BSS_DESC_STALE_SEC))) {
-		log_dbg(SCN, WARN, "BSS "
-			MACSTR
-			" description is too old.\n",
-			MAC2STR(prBssDesc->aucBSSID));
-		return FALSE;
+#if CFG_SUPPORT_RN
+	if (prAdapter->prAisBssInfo->fgDisConnReassoc == FALSE)
+#endif
+	{
+		if (CHECK_FOR_TIMEOUT(kalGetTimeTick(), prBssDesc->rUpdateTime,
+			SEC_TO_SYSTIME(SCN_BSS_DESC_STALE_SEC))) {
+			log_dbg(SCN, WARN, "BSS "
+				MACSTR
+				" description is too old.\n",
+				MAC2STR(prBssDesc->aucBSSID));
+			return FALSE;
+		}
 	}
-
 #if CFG_SUPPORT_WAPI
 	if (prAdapter->rWifiVar.rConnSettings.fgWapiMode) {
 		if (!wapiPerformPolicySelection(prAdapter, prBssDesc))

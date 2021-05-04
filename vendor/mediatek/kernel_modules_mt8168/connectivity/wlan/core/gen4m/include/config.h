@@ -258,6 +258,17 @@
 
 /* Enable A-MSDU RX Reordering Support */
 #define CFG_SUPPORT_RX_AMSDU	1
+/* Enable A-MSDU Attack Detection */
+#define CFG_SUPPORT_AMSDU_ATTACK_DETECTION 1
+/* Enable Fragment Support */
+#define CFG_SUPPORT_FRAG_SUPPORT 1
+/* Enable Fragment Attack Detection */
+#define CFG_SUPPORT_FRAG_ATTACK_DETECTION 1
+/* Enable Fake EAPOL Detection */
+#define CFG_SUPPORT_FAKE_EAPOL_DETECTION 1
+/* Enable TKIP MIC ERROR Detection */
+#define CFG_SUPPORT_TKIP_MICERROR_DETECTION 1
+
 
 /* Enable Android wake_lock operations */
 #ifndef CFG_ENABLE_WAKE_LOCK
@@ -821,6 +832,8 @@
 
 /* Roaming System */
 #define CFG_SUPPORT_ROAMING         1
+#define CFG_SUPPORT_RN                      1
+
 #if (CFG_SUPPORT_ROAMING == 1)
 
 /* Roaming feature: skip roaming when only one ESSID AP

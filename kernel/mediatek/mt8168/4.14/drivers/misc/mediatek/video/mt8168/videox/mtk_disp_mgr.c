@@ -98,6 +98,7 @@ static int has_memory_session;
 
 static unsigned int session_config[MAX_SESSION_COUNT];
 static DEFINE_MUTEX(disp_session_lock);
+static DEFINE_MUTEX(disp_layer_lock);
 
 static dev_t mtk_disp_mgr_devno;
 static struct cdev *mtk_disp_mgr_cdev;
@@ -1050,18 +1051,17 @@ long _frame_config(unsigned long arg)
 		return -EFAULT;
 	}
 
+	if (disp_validate_ioctl_params(frame_cfg)) {
+		kfree(frame_cfg);
+		return -EINVAL;
+	}
+
 	DISPDBG("%s\n", __func__);
 	frame_cfg->setter = SESSION_USER_HWC;
 
 	input_config_preprocess(frame_cfg);
 	if (frame_cfg->output_en)
 		output_config_preprocess(frame_cfg);
-
-	if (disp_validate_ioctl_params(frame_cfg)) {
-		disp_input_free_dirty_roi(frame_cfg);
-		kfree(frame_cfg);
-		return -EINVAL;
-	}
 
 	if (DISP_SESSION_TYPE(frame_cfg->session_id) == DISP_SESSION_PRIMARY)
 		primary_display_frame_cfg(frame_cfg);
@@ -1328,7 +1328,9 @@ static long _ioctl_query_valid_layer(unsigned long arg)
 		return -EINVAL;
 	}
 
+	mutex_lock(&disp_layer_lock);
 	layering_rule_start(&disp_info_user, 0);
+	mutex_unlock(&disp_layer_lock);
 
 	if (copy_to_user(argp, &disp_info_user, sizeof(disp_info_user))) {
 		DISPERR("[FB]: copy_to_user failed! line:%d\n", __LINE__);

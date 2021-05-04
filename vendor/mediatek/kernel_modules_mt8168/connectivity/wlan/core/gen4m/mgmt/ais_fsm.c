@@ -69,6 +69,12 @@
  *******************************************************************************
  */
 #include "precomp.h"
+#ifdef CONFIG_AMZN_METRICS_LOG
+#include <linux/amzn_metricslog.h>
+#endif
+#ifdef CONFIG_AMAZON_METRICS_LOG
+#include <linux/metricslog.h>
+#endif
 
 /*******************************************************************************
  *                              C O N S T A N T S
@@ -736,21 +742,8 @@ void aisFsmStateInit_JOIN(IN struct ADAPTER *prAdapter,
 	prJoinReqMsg->ucSeqNum = ++prAisFsmInfo->ucSeqNumOfReqMsg;
 	prJoinReqMsg->prStaRec = prStaRec;
 
-	if (1) {
-		int j;
-		struct FRAG_INFO *prFragInfo;
+	nicRxClearFrag(prAdapter, prStaRec);
 
-		for (j = 0; j < MAX_NUM_CONCURRENT_FRAGMENTED_MSDUS; j++) {
-			prFragInfo = &prStaRec->rFragInfo[j];
-
-			if (prFragInfo->pr1stFrag) {
-				/* nicRxReturnRFB(prAdapter,
-				 * prFragInfo->pr1stFrag);
-				 */
-				prFragInfo->pr1stFrag = (struct SW_RFB *)NULL;
-			}
-		}
-	}
 #if CFG_SUPPORT_802_11K
 	rlmSetMaxTxPwrLimit(prAdapter,
 			    (prBssDesc->cPowerLimit != RLM_INVALID_POWER_LIMIT)
@@ -1462,6 +1455,14 @@ void aisFsmSteps(IN struct ADAPTER *prAdapter, enum ENUM_AIS_STATE eNextState)
 					    NET_TYPE_INFRA)
 						prAisFsmInfo->
 						ucConnTrialCount++;
+#if CFG_SUPPORT_RN
+					if (prAisBssInfo->fgDisConnReassoc == TRUE) {
+						eNextState = AIS_STATE_JOIN_FAILURE;
+						fgIsTransition = TRUE;
+						break;
+					}
+#endif
+
 
 					/* 4 <A> Try to SCAN */
 					if (prAisFsmInfo->fgTryScan) {
@@ -2134,7 +2135,14 @@ void aisFsmSteps(IN struct ADAPTER *prAdapter, enum ENUM_AIS_STATE eNextState)
 						= REPORT_AUTHASSOC_END;
 			}
 #endif
-			nicMediaJoinFailure(prAdapter,
+#if CFG_SUPPORT_RN
+			if (prAisBssInfo->fgDisConnReassoc == TRUE) {
+				nicMediaJoinFailure(prAdapter, prAdapter->prAisBssInfo->ucBssIndex,
+							WLAN_STATUS_MEDIA_DISCONNECT);
+				prAisBssInfo->fgDisConnReassoc = FALSE;
+			} else
+#endif
+				nicMediaJoinFailure(prAdapter,
 					    prAdapter->prAisBssInfo->ucBssIndex,
 					    WLAN_STATUS_JOIN_FAILURE);
 
@@ -2897,6 +2905,50 @@ void aisFsmRunEventJoinComplete(IN struct ADAPTER *prAdapter,
 	cnmMemFree(prAdapter, prMsgHdr);
 }				/* end of aisFsmRunEventJoinComplete() */
 
+#if defined(CONFIG_AMAZON_METRICS_LOG) || defined(CONFIG_AMZN_METRICS_LOG)
+void aisNotifyAutoReconnectMetic(IN struct BSS_INFO *prAisBssInfo,
+	IN struct STA_RECORD *prStaRec, uint8_t bConnect)
+{
+	uint8_t key_str[2] = {'S','\0'};
+	uint8_t metadata_str[128];
+	uint16_t metadata;
+	uint8_t metadata1;
+	uint16_t metadata2;
+	int ret = -1;
+
+	DEBUGFUNC("aisNotifyAutoReconnectMetic()");
+	if (prAisBssInfo == NULL || prStaRec == NULL) {
+		DBGLOG(AIS, ERROR,
+			"aisNotifyAutoReconnectMetic() exception\n");
+		return;
+	}
+
+	metadata = prAisBssInfo->u2DeauthReason;
+	metadata1 = prAisBssInfo->ucPrimaryChannel;
+	metadata2 = prStaRec->u2ReasonCode;
+	kalMemSet(metadata_str, 0x00, 128);
+	if (bConnect == TRUE) {
+		key_str [0]= 'S';
+		sprintf(metadata_str,
+			"!{\"d\"#{\"metadata\"#\"%d\"$\"metadata1\"#\"%d\"}}", metadata, metadata1);
+	}
+	else {
+		key_str [0]= 'F';
+		sprintf(metadata_str,
+			"!{\"d\"#{\"metadata\"#\"%d\"$\"metadata1\"#\"%d\"$\"metadata2\"#\"%d\"}}",
+			metadata, metadata1, metadata2);
+	}
+
+	ret = log_counter_to_vitals(ANDROID_LOG_INFO,
+		"Kernel vitals", "wifiKDM", "conn-num-autoreconnects",
+		key_str, 1, "count", metadata_str, VITALS_NORMAL);
+	if (ret)
+		DBGLOG(AIS, ERROR,
+			"log_counter_to_vitals fail: auto reconnect reason = %d %d\n",
+			metadata,ret);
+}
+#endif
+
 enum ENUM_AIS_STATE aisFsmJoinCompleteAction(IN struct ADAPTER *prAdapter,
 					     IN struct MSG_HDR *prMsgHdr)
 {
@@ -2929,6 +2981,14 @@ enum ENUM_AIS_STATE aisFsmJoinCompleteAction(IN struct ADAPTER *prAdapter,
 	do {
 		/* 4 <1> JOIN was successful */
 		if (prJoinCompMsg->rJoinStatus == WLAN_STATUS_SUCCESS) {
+#if CFG_SUPPORT_RN
+			GET_CURRENT_SYSTIME(&prAisBssInfo->rConnTime);
+			if (prAisBssInfo->fgDisConnReassoc == TRUE) {
+				prAisBssInfo->fgDisConnReassoc = FALSE;
+				aisNotifyAutoReconnectMetic(prAisBssInfo, prStaRec, TRUE);
+			}
+#endif
+
 			prAdapter->rWifiVar.
 			    rConnSettings.fgSecModeChangeStartTimer = FALSE;
 
@@ -3220,6 +3280,12 @@ enum ENUM_AIS_STATE aisFsmJoinCompleteAction(IN struct ADAPTER *prAdapter,
 					if (!prAisFsmInfo->prTargetBssDesc)
 						DBGLOG(AIS, ERROR,
 						       "Can't retrieve target bss descriptor\n");
+#if CFG_SUPPORT_RN
+				} else if (prAisBssInfo->fgDisConnReassoc == TRUE) {
+					eNextState = AIS_STATE_JOIN_FAILURE;
+					aisNotifyAutoReconnectMetic(prAisBssInfo, prStaRec, FALSE);
+#endif
+
 				} else if (prAisFsmInfo->rJoinReqTime != 0
 					   && CHECK_FOR_TIMEOUT(rCurrentTime,
 						prAisFsmInfo->rJoinReqTime,
@@ -3723,12 +3789,18 @@ aisIndicationOfMediaStateToHost(IN struct ADAPTER *prAdapter,
 	} else {
 		/* NOTE: Only delay the Indication of Disconnect Event */
 		ASSERT(eConnectionState == PARAM_MEDIA_STATE_DISCONNECTED);
+#if CFG_SUPPORT_RN
+		if (prAisBssInfo->fgDisConnReassoc) {
+			DBGLOG(AIS, INFO, "Reassoc the AP once beacause of receive deauth/deassoc\n");
+		} else
+#endif
+		{
+			DBGLOG(AIS, INFO,
+			       "Postpone the indication of Disconnect for %d seconds\n",
+			       prConnSettings->ucDelayTimeOfDisconnectEvent);
 
-		DBGLOG(AIS, INFO,
-		       "Postpone the indication of Disconnect for %d seconds\n",
-		       prConnSettings->ucDelayTimeOfDisconnectEvent);
-
-		prAisFsmInfo->u4PostponeIndStartTime = kalGetTimeTick();
+			prAisFsmInfo->u4PostponeIndStartTime = kalGetTimeTick();
+		}
 	}
 }				/* end of aisIndicationOfMediaStateToHost() */
 
@@ -3777,6 +3849,9 @@ void aisPostponedEventOfDisconnTimeout(IN struct ADAPTER *prAdapter,
 	fgIsBeaconTimeout =
 	    prAisBssInfo->ucReasonOfDisconnect ==
 	    DISCONNECT_REASON_CODE_RADIO_LOST;
+#if CFG_SUPPORT_RN
+	fgIsBeaconTimeout &= !prAisBssInfo->fgDisConnReassoc;
+#endif
 
 	/* only retry connect once when beacon timeout */
 	if (!fgIsPostponeTimeout
@@ -4327,14 +4402,19 @@ void aisFsmDisconnect(IN struct ADAPTER *prAdapter,
 			u2ReasonCode =
 				prAisBssInfo->prStaRecOfAP->u2ReasonCode;
 		}
-		if (prAisBssInfo->ucReasonOfDisconnect ==
-		    DISCONNECT_REASON_CODE_RADIO_LOST ||
+		if ((prAisBssInfo->ucReasonOfDisconnect ==
+		    DISCONNECT_REASON_CODE_RADIO_LOST
+#if CFG_SUPPORT_RN
+		    && (prAisBssInfo->fgDisConnReassoc == FALSE )
+#endif
+		    ) ||
 		    (prAisBssInfo->ucReasonOfDisconnect ==
 			DISCONNECT_REASON_CODE_DEAUTHENTICATED &&
 			u2ReasonCode == REASON_CODE_DEAUTH_LEAVING_BSS) ||
 		    (prAisBssInfo->ucReasonOfDisconnect ==
 			DISCONNECT_REASON_CODE_DISASSOCIATED &&
 			u2ReasonCode == REASON_CODE_DISASSOC_LEAVING_BSS)) {
+
 			scanRemoveBssDescByBssid(prAdapter,
 						 prAisBssInfo->aucBSSID);
 

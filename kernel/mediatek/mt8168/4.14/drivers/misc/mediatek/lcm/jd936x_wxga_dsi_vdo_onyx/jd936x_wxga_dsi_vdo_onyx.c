@@ -2994,6 +2994,22 @@ static void init_onyx_fiti_tah_tg_boe_lcm(void)
 	data_array[0] = 0x2A0E1500;
 	dsi_set_cmdq(data_array, 1, 1);
 	data_array[0] = 0x59361500;
+	dsi_set_cmdq(data_array, 1, 1);
+	data_array[0] = 0x01A91500;
+	dsi_set_cmdq(data_array, 1, 1);
+	data_array[0] = 0x68AA1500;
+	dsi_set_cmdq(data_array, 1, 1);
+	data_array[0] = 0x1A351500;
+	dsi_set_cmdq(data_array, 1, 1);
+	data_array[0] = 0x35291500;
+	dsi_set_cmdq(data_array, 1, 1);
+	data_array[0] = 0x242A1500;
+	dsi_set_cmdq(data_array, 1, 1);
+	/*PAGE 5*/
+	data_array[0] = 0x05E01500;
+	dsi_set_cmdq(data_array, 1, 1);
+	data_array[0] = 0x18151500;
+	dsi_set_cmdq(data_array, 1, 1);
 	/* PAGE 0*/
 	data_array[0] = 0x00E01500;
 	dsi_set_cmdq(data_array, 1, 1);

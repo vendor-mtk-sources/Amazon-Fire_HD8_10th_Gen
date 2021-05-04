@@ -548,6 +548,11 @@ struct BSS_INFO {
 
 	/*link layer statistics */
 	struct WIFI_WMM_AC_STAT arLinkStatistics[WMM_AC_INDEX_NUM];
+#if CFG_SUPPORT_RN
+	OS_SYSTIME rConnTime;
+	uint8_t fgDisConnReassoc;
+#endif
+
 
 	uint32_t u4CoexPhyRateLimit;
 

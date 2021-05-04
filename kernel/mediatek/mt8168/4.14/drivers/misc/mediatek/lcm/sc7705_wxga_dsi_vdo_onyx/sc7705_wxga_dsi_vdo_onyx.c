@@ -190,7 +190,7 @@ static int lcm_platform_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id lcm_platform_of_match[] = {
-	{.compatible = "sc,sc7705_kd_hsd"},
+	{.compatible = "sc,sc7705_kd_boe"},
 	{},
 };
 
@@ -276,7 +276,7 @@ MODULE_LICENSE("GPL");
 #define MP		0x6
 #define BUILD_MASK	0x7
 
-#define SITR_KD_HSD	0x8	/*0x8 TG, using SITR IC */
+#define SITR_KD_BOE	0x8	/*0x8 TG, using SITR IC */
 
 /* ----------------------------------------------------------------- */
 /*  Local Variables */
@@ -291,6 +291,10 @@ static struct LCM_UTIL_FUNCS lcm_util = { 0 };
 /* ----------------------------------------------------------------- */
 /* Local Functions */
 /* ----------------------------------------------------------------- */
+#define dsi_set_cmdq_V4(para_tbl, size, force_update) \
+	lcm_util.dsi_set_cmdq_V4(para_tbl, size, force_update)
+#define dsi_get_cmdq_V4(para_tbl, size, force_update) \
+	lcm_util.dsi_get_cmdq_V4(para_tbl, size, force_update)
 #define dsi_set_cmdq_V2(cmd, count, ppara, force_update) \
 		 (lcm_util.dsi_set_cmdq_V2(cmd, count, ppara, force_update))
 #define dsi_set_cmdq(pdata, queue_size, force_update) \
@@ -304,7 +308,15 @@ static struct LCM_UTIL_FUNCS lcm_util = { 0 };
 #define read_reg_v2(cmd, buffer, buffer_size) \
 		 (lcm_util.dsi_dcs_read_lcm_reg_v2(cmd, buffer, buffer_size))
 
-static void init_onyx_sitr_kd_hsd_lcm(void)
+static struct LCM_setting_table_V4 cabc_on_setting[] = {
+	{0x15/*DSI_DCS_SHORT_PACKET_ID_1*/, LCM_CABC_MODE_REG, 1, {0x03}, 0 },
+};
+
+static struct LCM_setting_table_V4 cabc_off_setting[] = {
+	{0x15/*DSI_DCS_SHORT_PACKET_ID_1*/, LCM_CABC_MODE_REG, 1, {0x00}, 0 },
+};
+
+static void init_onyx_sitr_kd_boe_lcm(void)
 {
 	unsigned int data_array[64];
 
@@ -314,8 +326,8 @@ static void init_onyx_sitr_kd_hsd_lcm(void)
 	data_array[1] = 0x8412F1B9;
 	dsi_set_cmdq(data_array, 2, 1);
 	data_array[0] = 0x000B3902;
-	data_array[1] = 0x235321B1;
-	data_array[2] = 0x77442E2E;
+	data_array[1] = 0x237523B1;
+	data_array[2] = 0x77332E2E;
 	data_array[3] = 0x000CDB01;
 	dsi_set_cmdq(data_array, 4, 1);
 	data_array[0] = 0x00033902;
@@ -326,24 +338,23 @@ static void init_onyx_sitr_kd_hsd_lcm(void)
 	data_array[2] = 0x28282800;
 	data_array[3] = 0x00000028;
 	dsi_set_cmdq(data_array, 4, 1);
-	data_array[0] = 0x80B41500;
+	data_array[0] = 0x20B41500;
 	dsi_set_cmdq(data_array, 1, 1);
 	data_array[0] = 0x00033902;
-	data_array[1] = 0x001515B5;
+	data_array[1] = 0x000909B5;
 	dsi_set_cmdq(data_array, 2, 1);
-	/* Vcom */
 	data_array[0] = 0x00033902;
-	data_array[1] = 0x003838B6;
+	data_array[1] = 0x008686B6;
 	dsi_set_cmdq(data_array, 2, 1);
 	data_array[0] = 0x00033902;
 	data_array[1] = 0x000377B8;
 	dsi_set_cmdq(data_array, 2, 1);
 	data_array[0] = 0x001C3902;
 	data_array[1] = 0x058133BA;
-	data_array[2] = 0x020E0EF9;
+	data_array[2] = 0x200E0EF9;
 	data_array[3] = 0x00000000;
 	data_array[4] = 0x44000000;
-	data_array[5] = 0x0A910025;
+	data_array[5] = 0x0A900025;
 	data_array[6] = 0x4F020000;
 	data_array[7] = 0x37000001;
 	dsi_set_cmdq(data_array, 8, 1);
@@ -354,82 +365,76 @@ static void init_onyx_sitr_kd_hsd_lcm(void)
 	dsi_set_cmdq(data_array, 2, 1);
 	data_array[0] = 0x000A3902;
 	data_array[1] = 0x507373C0;
-	data_array[2] = 0x38008050;
+	data_array[2] = 0x08008050;
 	data_array[3] = 0x00000070;
 	dsi_set_cmdq(data_array, 4, 1);
 	data_array[0] = 0x0BCC1500;
 	dsi_set_cmdq(data_array, 1, 1);
 	data_array[0] = 0x00233902;
-	data_array[1] = 0x0E0A00E0;
-	data_array[2] = 0x463F312C;
-	data_array[3] = 0x0C0B073E;
-	data_array[4] = 0x12101211;
-	data_array[5] = 0x0A001712;
-	data_array[6] = 0x3F312C0E;
-	data_array[7] = 0x0B073E46;
-	data_array[8] = 0x1012110C;
-	data_array[9] = 0x00171212;
+	data_array[1] = 0x161201E0;
+	data_array[2] = 0x443F382E;
+	data_array[3] = 0x0C0A0438;
+	data_array[4] = 0x12111311;
+	data_array[5] = 0x1201140F;
+	data_array[6] = 0x3F382E16;
+	data_array[7] = 0x0A043844;
+	data_array[8] = 0x1113110C;
+	data_array[9] = 0x00140F12;
 	dsi_set_cmdq(data_array, 10, 1);
-	data_array[0] = 0x000C3902;
-	data_array[1] = 0x010101E3;
-	data_array[2] = 0x00010101;
+	data_array[0] = 0x000B3902;
+	data_array[1] = 0x000303E3;
+	data_array[2] = 0x00030300;
 	data_array[3] = 0x00C00000;
 	dsi_set_cmdq(data_array, 4, 1);
-	/* CABC SETTING */
 	data_array[0] = 0x00403902;
-	data_array[1] = 0x080002E9;
-	data_array[2] = 0x81800D05;
-	data_array[3] = 0x47233112;
-	data_array[4] = 0x4736800A;
-	data_array[5] = 0x00810000;
-	data_array[6] = 0x00000000;
-	data_array[7] = 0x00000081;
-	data_array[8] = 0x02ABF800;
-	data_array[9] = 0x88880846;
-	data_array[10] = 0x88888884;
-	data_array[11] = 0x5713ABF8;
-	data_array[12] = 0x85888818;
-	data_array[13] = 0x00888888;
-	data_array[14] = 0x00010000;
+	data_array[1] = 0x0B0002E9;
+	data_array[2] = 0x81801A05;
+	data_array[3] = 0x5F233112;
+	data_array[4] = 0x4728800E;
+	data_array[5] = 0x00010808;
+	data_array[6] = 0x08000000;
+	data_array[7] = 0x00000001;
+	data_array[8] = 0x77113300;
+	data_array[9] = 0x88881855;
+	data_array[10] = 0x88B48A88;
+	data_array[11] = 0x44660022;
+	data_array[12] = 0x88888808;
+	data_array[13] = 0x0088B48A;
+	data_array[14] = 0x00000000;
 	data_array[15] = 0x00000000;
 	data_array[16] = 0x00000000;
 	dsi_set_cmdq(data_array, 17, 1);
 	data_array[0] = 0x00403902;
-	data_array[1] = 0x011296EA;
-	data_array[2] = 0x003C0201;
+	data_array[1] = 0x020C96EA;
+	data_array[2] = 0x00B40202;
 	data_array[3] = 0x00000000;
-	data_array[4] = 0x75AB8F00;
-	data_array[5] = 0x88885831;
-	data_array[6] = 0x88888881;
-	data_array[7] = 0x2064AB8F;
-	data_array[8] = 0x80888848;
-	data_array[9] = 0x23888888;
-	data_array[10] = 0x01000020;
-	data_array[11] = 0x00000048;
+	data_array[4] = 0x00664400;
+	data_array[5] = 0x88880822;
+	data_array[6] = 0x88B48A88;
+	data_array[7] = 0x33117755;
+	data_array[8] = 0x88888818;
+	data_array[9] = 0x2388B48A;
+	data_array[10] = 0x01000010;
+	data_array[11] = 0x00000045;
 	data_array[12] = 0x00000000;
 	data_array[13] = 0x00000000;
-	data_array[14] = 0x40000000;
+	data_array[14] = 0x50000000;
 	data_array[15] = 0x00008180;
-	data_array[16] = 0x0E010000;
+	data_array[16] = 0x16010000;
 	dsi_set_cmdq(data_array, 17, 1);
-	/* Set PWM enable */
+	/* cabc setting */
+	data_array[0] = 0x2C531500;
+	dsi_set_cmdq(data_array, 1, 1);
 	data_array[0] = 0x00053902;
 	data_array[1] = 0x0000A0C7;
 	data_array[2] = 0x00000004;
 	dsi_set_cmdq(data_array, 3, 1);
-	/* 10Khz */
 	data_array[0] = 0x00053902;
 	data_array[1] = 0x060610C8;
 	data_array[2] = 0x00000008;
 	dsi_set_cmdq(data_array, 3, 1);
-	/* CABC UI Mode */
+	/* pwm duty */
 	data_array[0] = 0xFF511500;
-	dsi_set_cmdq(data_array, 1, 1);
-	/* 0x2C dimming on */
-	data_array[0] = 0x2C531500;
-	dsi_set_cmdq(data_array, 1, 1);
-	/* Set MODE */
-	data_array[0] = 0x00551500;
 	dsi_set_cmdq(data_array, 1, 1);
 	/* SLP OUT*/
 	data_array[0] = 0x00111500;
@@ -437,7 +442,7 @@ static void init_onyx_sitr_kd_hsd_lcm(void)
 	MDELAY(120);
 	data_array[0] = 0x00291500;
 	dsi_set_cmdq(data_array, 1, 1);
-	MDELAY(5);
+	MDELAY(20);
 }
 
 /* ----------------------------------------------------------------- */
@@ -448,7 +453,7 @@ static void lcm_set_util_funcs(const struct LCM_UTIL_FUNCS *util)
 	memcpy(&lcm_util, util, sizeof(struct LCM_UTIL_FUNCS));
 }
 
-static void lcm_get_sitr_onyx_kd_hsd_params(struct LCM_PARAMS *params)
+static void lcm_get_sitr_onyx_kd_boe_params(struct LCM_PARAMS *params)
 {
 	pr_debug("[sc7705] %s enter.\n", __func__);
 
@@ -506,9 +511,9 @@ static void lcm_get_sitr_onyx_kd_hsd_params(struct LCM_PARAMS *params)
 	params->dsi.lcm_esd_check_table[1].count = 1;
 	params->dsi.lcm_esd_check_table[1].para_list[0] = 0x9C;
 
-	params->dsi.lcm_esd_check_table[2].cmd = 0xCC;
+	params->dsi.lcm_esd_check_table[2].cmd = 0xBA;
 	params->dsi.lcm_esd_check_table[2].count = 1;
-	params->dsi.lcm_esd_check_table[2].para_list[0] = 0x0B;
+	params->dsi.lcm_esd_check_table[2].para_list[0] = 0x33;
 
 	params->dsi.TA_GO = 8;
 	params->dsi.TA_GET = 10;
@@ -533,7 +538,7 @@ static void lcm_reset(void)
 static char *lcm_get_vendor_type(void)
 {
 	switch (vendor_id) {
-	case SITR_KD_HSD: return "SITR_KD_HSD\0";
+	case SITR_KD_BOE: return "SITR_KD_BOE\0";
 	default: return "Unknown\0";
 	}
 }
@@ -547,8 +552,10 @@ static void lcm_init(void)
 	pr_info("[Kernel/LCM] vendor type: %s\n",
 			lcm_get_vendor_type());
 
-	if (vendor_id == SITR_KD_HSD)
-	init_onyx_sitr_kd_hsd_lcm();	/*SITR KD panel*/
+	if (vendor_id == SITR_KD_BOE)
+		init_onyx_sitr_kd_boe_lcm();	/*SITR KD panel*/
+	else
+		init_onyx_sitr_kd_boe_lcm();	/*SITR KD panel*/
 
 	lcm_set_bl(1);
 }
@@ -569,8 +576,10 @@ static void lcm_resume(void)
 
 	lcm_reset();
 
-	if (vendor_id == SITR_KD_HSD)
-	init_onyx_sitr_kd_hsd_lcm();	/*SITR KD panel*/
+	if (vendor_id == SITR_KD_BOE)
+		init_onyx_sitr_kd_boe_lcm();	/*SITR KD panel*/
+	else
+		init_onyx_sitr_kd_boe_lcm();	/*SITR KD panel*/
 
 	lcm_set_bl(1);
 }
@@ -586,7 +595,7 @@ static void lcm_init_power(void)
 		return;
 	}
 	ret = regulator_enable(lcm_data.vsim1_ldo);
-	MDELAY(6);
+	MDELAY(30);
 	display_bias_enable();
 	MDELAY(5);
 	lcm_reset();
@@ -603,7 +612,7 @@ static void lcm_resume_power(void)
 		return;
 	}
 	ret = regulator_enable(lcm_data.vsim1_ldo);
-	MDELAY(6);
+	MDELAY(30);
 	display_bias_enable();
 	MDELAY(5);
 }
@@ -652,8 +661,25 @@ static void lcm_setbacklight_mode(unsigned int mode)
 		pr_err("%s invalid CABC mode=%d\n", __FUNCTION__, mode);
 		return;
 	}
+
 	pr_info("lcm driver cabc mode =%x\n", mode);
-	dsi_set_cmdq_V2(LCM_CABC_MODE_REG, 1, ((unsigned char *)&mode), 1);
+
+	switch (mode) {
+	case CABC_MOVIE:
+		pr_info("[SC7705][LCM/K]CABC_MOVIE\n");
+		dsi_set_cmdq_V4(cabc_on_setting,
+			sizeof(cabc_on_setting) / sizeof(struct LCM_setting_table_V4), 1);
+		break;
+	case CABC_OFF:
+		pr_info("[SC7705][LCM/K]CABC_OFF\n");
+		dsi_set_cmdq_V4(cabc_off_setting,
+			sizeof(cabc_off_setting) / sizeof(struct LCM_setting_table_V4), 1);
+		break;
+	default:
+		pr_notice("CABC mode %x is not supported now\n", mode);
+		break;
+	}
+
 }
 
 static void lcm_setbacklight_power_off(void)
@@ -662,10 +688,10 @@ static void lcm_setbacklight_power_off(void)
 	lcm_set_bl(0);
 }
 
-struct LCM_DRIVER sc7705_wxga_dsi_vdo_sitr_kd_hsd_onyx_lcm_drv = {
-	.name		= "sc7705_wxga_dsi_vdo_sitr_kd_hsd_onyx",
+struct LCM_DRIVER sc7705_wxga_dsi_vdo_sitr_kd_boe_onyx_lcm_drv = {
+	.name		= "sc7705_wxga_dsi_vdo_sitr_kd_boe_onyx",
 	.set_util_funcs = lcm_set_util_funcs,
-	.get_params     = lcm_get_sitr_onyx_kd_hsd_params,
+	.get_params     = lcm_get_sitr_onyx_kd_boe_params,
 	.init           = lcm_init,
 	.init_power	= lcm_init_power,
 	.suspend	= lcm_suspend,

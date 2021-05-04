@@ -803,6 +803,14 @@ struct LCM_setting_table_V3 {
 	unsigned char para_list[128];
 };
 
+struct LCM_setting_table_V4 {
+	unsigned char id;
+	unsigned char cmd;
+	unsigned char count;
+	unsigned char para_list[128];
+	unsigned int flag;
+};
+
 /*
  * dtype	---- data type
  * vc		---- virtual channel
@@ -832,6 +840,10 @@ struct LCM_UTIL_FUNCS {
 	void (*send_data)(unsigned int data);
 	unsigned int (*read_data)(void);
 
+	void (*dsi_set_cmdq_V4)(struct LCM_setting_table_V4 *para_list,
+				unsigned int size, unsigned char force_update);
+	int (*dsi_get_cmdq_V4)(struct LCM_setting_table_V4 *para_list,
+				unsigned int size, unsigned char force_update);
 	void (*dsi_set_cmdq_V3)(struct LCM_setting_table_V3 *para_list,
 			unsigned int size, unsigned char force_update);
 	void (*dsi_set_cmdq_V2)(unsigned int cmd, unsigned char count,

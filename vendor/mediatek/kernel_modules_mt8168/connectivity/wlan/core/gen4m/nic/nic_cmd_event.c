@@ -4441,6 +4441,7 @@ void nicEventBeaconTimeout(IN struct ADAPTER *prAdapter,
 				[prEventBssBeaconTimeout->ucReasonCode]++;
 		}
 #endif /* fos_change end */
+		prAdapter->prAisBssInfo->u2DeauthReason = prEventBssBeaconTimeout->ucReasonCode;
 
 		/* WiFi Calling Enhancement */
 		/* When FW sends beaconTimeout to driver, driver always try to
@@ -5180,6 +5181,51 @@ REPORT_MISC:
 		kalOidComplete(prAdapter->prGlueInfo, prCmdInfo->fgSetQuery,
 			       sizeof(struct PARAM_HW_MIB_INFO),
 			       WLAN_STATUS_SUCCESS);
+	}
+}
+#endif
+
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+void nicCmdEventGetFwActiveTimeStatistics(IN struct ADAPTER *prAdapter,
+	IN struct CMD_INFO *prCmdInfo,
+	IN uint8_t *pucEventBuf)
+{
+	uint32_t u4QueryInfoLen;
+	struct CMD_FW_ACTIVE_TIME_STATISTICS *prFwActiveTimeStatistics;
+	struct GLUE_INFO *prGlueInfo;
+	struct EVENT_FW_ACTIVE_TIME_STATISTICS *prEventFwActiveTimeStatistics;
+
+	ASSERT(prAdapter);
+	ASSERT(prCmdInfo);
+	ASSERT(pucEventBuf);
+
+	DBGLOG(NIC, LOUD, "nicCmdEventGetFwActiveTimeStatistics\n");
+
+	/* 4 <2> Update information of OID */
+	if (prCmdInfo->fgIsOid) {
+		prGlueInfo = prAdapter->prGlueInfo;
+		prEventFwActiveTimeStatistics = (struct EVENT_FW_ACTIVE_TIME_STATISTICS *) (pucEventBuf);
+
+		u4QueryInfoLen = sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS);
+
+		if (prCmdInfo->u4InformationBufferLength < sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS)) {
+			DBGLOG(NIC, WARN,
+			"FW active time statistics u4InformationBufferLength %u is not valid (event)\n",
+			prCmdInfo->u4InformationBufferLength);
+			return;
+		}
+		prFwActiveTimeStatistics = (struct CMD_FW_ACTIVE_TIME_STATISTICS*) prCmdInfo->pvInformationBuffer;
+		prFwActiveTimeStatistics->u4TimeDuringScreenOn = prEventFwActiveTimeStatistics->u4TimeDuringScreenOn;
+		prFwActiveTimeStatistics->u4TimeDuringScreenOff = prEventFwActiveTimeStatistics->u4TimeDuringScreenOff;
+		prFwActiveTimeStatistics->u4HwTimeDuringScreenOn = prEventFwActiveTimeStatistics->u4HwTimeDuringScreenOn;
+		prFwActiveTimeStatistics->u4HwTimeDuringScreenOff = prEventFwActiveTimeStatistics->u4HwTimeDuringScreenOff;
+		DBGLOG(NIC, LOUD,
+			"TimeDuringScreenOn[%u] and TimeDuringScreenOff[%u]\n",
+			prFwActiveTimeStatistics->u4TimeDuringScreenOn, prFwActiveTimeStatistics->u4TimeDuringScreenOff);
+		DBGLOG(NIC, LOUD,
+			"HwTimeDuringScreenOn[%u] and HwTimeDuringScreenOff[%u]\n",
+			prFwActiveTimeStatistics->u4HwTimeDuringScreenOn, prFwActiveTimeStatistics->u4HwTimeDuringScreenOff);
+		kalOidComplete(prGlueInfo, prCmdInfo->fgSetQuery, u4QueryInfoLen, WLAN_STATUS_SUCCESS);
 	}
 }
 #endif

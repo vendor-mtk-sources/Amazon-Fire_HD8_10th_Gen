@@ -16446,3 +16446,119 @@ uint32_t wlanoidQueryAntennaSwap(IN struct ADAPTER *prAdapter,
 	return WLAN_STATUS_SUCCESS;
 }
 #endif	/* CFG_SUPPORT_ANT_SWAP */
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+uint32_t
+wlanoidSetFwActiveTimeStatistics(IN struct ADAPTER * prAdapter,
+	IN void * pvSetBuffer, IN uint32_t u4SetBufferLen, OUT uint32_t *pu4SetInfoLen)
+{
+	struct CMD_FW_ACTIVE_TIME_STATISTICS *prFwActiveTimeStatistics;
+	struct CMD_FW_ACTIVE_TIME_STATISTICS  rCmdFwActiveTimeStatistics;
+	uint32_t rWlanStatus = WLAN_STATUS_SUCCESS;
+
+	ASSERT(prAdapter);
+	ASSERT(pu4SetInfoLen);
+
+	*pu4SetInfoLen = sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS);
+
+	if (u4SetBufferLen < sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS))
+		return WLAN_STATUS_INVALID_LENGTH;
+
+	ASSERT(pvSetBuffer);
+
+	prFwActiveTimeStatistics = (struct CMD_FW_ACTIVE_TIME_STATISTICS*) pvSetBuffer;
+	kalMemZero(&rCmdFwActiveTimeStatistics, sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS));
+
+	rCmdFwActiveTimeStatistics.u4Action = prFwActiveTimeStatistics->u4Action;
+	DBGLOG(REQ, LOUD, "u4Action[%u]\n", rCmdFwActiveTimeStatistics.u4Action);
+	rWlanStatus = wlanSendSetQueryCmd(prAdapter,
+		CMD_ID_FW_ACTIVE_TIME_STATISTICS,
+		TRUE,
+		FALSE,
+		TRUE,
+		nicCmdEventSetCommon,
+		nicOidCmdTimeoutCommon,
+		sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS),
+		(uint8_t *) &rCmdFwActiveTimeStatistics, pvSetBuffer, u4SetBufferLen);
+
+	return rWlanStatus;
+}
+
+uint32_t
+wlanoidGetFwActiveTimeStatistics(IN struct ADAPTER * prAdapter,
+	IN void * pvQueryBuffer, IN uint32_t u4QueryBufferLen, OUT uint32_t *pu4QueryInfoLen)
+{
+	struct CMD_FW_ACTIVE_TIME_STATISTICS *prFwActiveTimeStatistics;
+	struct CMD_FW_ACTIVE_TIME_STATISTICS rCmdFwActiveTimeStatistics;
+	uint32_t rWlanStatus = WLAN_STATUS_SUCCESS;
+
+	ASSERT(prAdapter);
+	ASSERT(pu4QueryInfoLen);
+
+	*pu4QueryInfoLen = sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS);
+
+	if (u4QueryBufferLen < sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS))
+		return WLAN_STATUS_INVALID_LENGTH;
+
+	ASSERT(pvQueryBuffer);
+
+	prFwActiveTimeStatistics = (struct CMD_FW_ACTIVE_TIME_STATISTICS *) pvQueryBuffer;
+	kalMemZero(&rCmdFwActiveTimeStatistics, sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS));
+
+	rCmdFwActiveTimeStatistics.u4Action = prFwActiveTimeStatistics->u4Action;
+	DBGLOG(REQ, LOUD, "u4Action[%u]\n", rCmdFwActiveTimeStatistics.u4Action);
+	rWlanStatus = wlanSendSetQueryCmd(prAdapter,
+		CMD_ID_FW_ACTIVE_TIME_STATISTICS,
+		FALSE,
+		TRUE,
+		TRUE,
+		nicCmdEventGetFwActiveTimeStatistics,
+		nicOidCmdTimeoutCommon,
+		sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS),
+		(uint8_t *) &rCmdFwActiveTimeStatistics, pvQueryBuffer, u4QueryBufferLen);
+
+	return rWlanStatus;
+
+}
+#endif
+
+/* add for fos7*/
+uint32_t
+wlanoidQueryBandWidth(IN struct ADAPTER *prAdapter,
+			  IN void *pvQueryBuffer, IN uint32_t u4QueryBufferLen, OUT uint32_t *pu4QueryInfoLen)
+{
+	uint32_t rResult = WLAN_STATUS_FAILURE;
+	uint8_t bandWidth;
+	struct BSS_INFO *prAisBssInfo  = (struct BSS_INFO *) NULL;
+
+	do {
+		if (u4QueryBufferLen)
+			ASSERT(pvQueryBuffer);
+
+		if (!prAdapter || !pu4QueryInfoLen)
+			break;
+
+		prAisBssInfo = prAdapter->prAisBssInfo;
+		if (!prAisBssInfo || prAisBssInfo->eConnectionState != PARAM_MEDIA_STATE_CONNECTED)
+			break;
+
+		rResult = WLAN_STATUS_SUCCESS;
+
+		if (prAisBssInfo->ucVhtChannelWidth == VHT_OP_CHANNEL_WIDTH_20_40) {
+			if (prAisBssInfo->eBssSCO == CHNL_EXT_SCA ||
+				prAisBssInfo->eBssSCO == CHNL_EXT_SCB)
+				bandWidth = 40;
+			else
+				bandWidth = 20;
+		}
+		else if (prAisBssInfo->ucVhtChannelWidth == VHT_OP_CHANNEL_WIDTH_80)
+			bandWidth = 80;
+		else if ((prAisBssInfo->ucVhtChannelWidth == VHT_OP_CHANNEL_WIDTH_160) ||
+			(prAisBssInfo->ucVhtChannelWidth == VHT_OP_CHANNEL_WIDTH_80P80))
+			bandWidth = 160;
+		else
+			rResult = WLAN_STATUS_FAILURE;
+		*(uint8_t *)pvQueryBuffer = bandWidth;
+	} while (FALSE);
+	return rResult;
+}
+

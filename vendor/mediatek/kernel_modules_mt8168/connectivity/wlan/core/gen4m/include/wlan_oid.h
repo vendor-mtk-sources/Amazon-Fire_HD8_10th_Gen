@@ -2578,6 +2578,27 @@ struct PARAM_GET_LINK_QUALITY_INFO {
 };
 #endif /* CFG_SUPPORT_LINK_QUALITY_MONITOR */
 
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+#define FW_ACTIVE_TIME_STATISTICS_ACTION_STOP   (0)
+#define FW_ACTIVE_TIME_STATISTICS_ACTION_START  (1)
+#define FW_ACTIVE_TIME_STATISTICS_ACTION_GET    (2)
+struct CMD_FW_ACTIVE_TIME_STATISTICS {
+	uint32_t u4Action;
+	uint32_t u4TimeDuringScreenOn; /*unit ms*/
+	uint32_t u4TimeDuringScreenOff; /*unit ms*/
+	uint32_t u4HwTimeDuringScreenOn; /*unit ms*/
+	uint32_t u4HwTimeDuringScreenOff; /*unit ms*/
+};
+#endif
+struct WIFI_ON_TIME_STATISTICS {
+	/*record total wifi on time (unit: ms) during screen on stage*/
+	uint32_t u4WifiOnTimeDuringScreenOn;
+	/*record total wifi on time (unit: ms) during screen off stage*/
+	uint32_t u4WifiOnTimeDuringScreenOff;
+	/*record the last update time*/
+	OS_SYSTIME lastUpdateTime;
+};
+
 /*******************************************************************************
  *                            P U B L I C   D A T A
  *******************************************************************************
@@ -4155,4 +4176,16 @@ uint32_t wlanoidNotifyChargeStatus(IN struct ADAPTER *prAdapter,
 					OUT uint32_t *pu4QueryInfoLen);
 #endif
 
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+uint32_t
+wlanoidSetFwActiveTimeStatistics(IN struct ADAPTER * prAdapter,
+					IN void * pvSetBuffer, IN uint32_t u4SetBufferLen, OUT uint32_t *pu4SetInfoLen);
+					uint32_t
+					wlanoidGetFwActiveTimeStatistics(IN struct ADAPTER * prAdapter,
+					IN void * pvQueryBuffer, IN uint32_t u4QueryBufferLen, OUT uint32_t *pu4QueryInfoLen);
+#endif
+/*add for fos7*/
+uint32_t
+wlanoidQueryBandWidth(IN struct ADAPTER *prAdapter,
+			  IN void *pvQueryBuffer, IN uint32_t u4QueryBufferLen, OUT uint32_t *pu4QueryInfoLen);
 #endif /* _WLAN_OID_H */

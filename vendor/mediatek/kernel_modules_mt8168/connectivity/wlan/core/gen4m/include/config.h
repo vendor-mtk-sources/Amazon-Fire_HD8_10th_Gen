@@ -1287,6 +1287,8 @@
 
 #define CFG_SUPPORT_BA_OFFLOAD 1 /* fos_change oneline */
 
+#define CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS 1 /*fos_change online*/
+
 /*******************************************************************************
  *                             D A T A   T Y P E S
  *******************************************************************************

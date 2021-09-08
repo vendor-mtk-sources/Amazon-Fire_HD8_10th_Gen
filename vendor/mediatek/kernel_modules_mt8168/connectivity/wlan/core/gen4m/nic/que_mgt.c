@@ -3159,7 +3159,8 @@ struct SW_RFB *qmHandleRxPackets(IN struct ADAPTER *prAdapter,
 		}
 #endif
 #if CFG_SUPPORT_FAKE_EAPOL_DETECTION
-		if (qmDetectRxInvalidEAPOL(prAdapter, prCurrSwRfb)) {
+		if (prCurrSwRfb->fgDataFrame && prCurrSwRfb->prStaRec &&
+			qmDetectRxInvalidEAPOL(prAdapter, prCurrSwRfb)) {
 			prCurrSwRfb->eDst = RX_PKT_DESTINATION_NULL;
 			QUEUE_INSERT_TAIL(prReturnedQue, (struct QUE_ENTRY *) prCurrSwRfb);
 			DBGLOG(QM, INFO,

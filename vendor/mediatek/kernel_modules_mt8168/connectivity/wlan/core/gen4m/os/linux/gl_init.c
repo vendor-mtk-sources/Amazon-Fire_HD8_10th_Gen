@@ -114,6 +114,18 @@ struct pm_qos_request wifibw_qos_request;
 static char idme_board_id[17];
 #endif
 
+/* fos_change begin */
+#if CFG_SUPPORT_WAKEUP_STATISTICS
+struct WAKEUP_STATISTIC g_arWakeupStatistic[WAKEUP_TYPE_NUM];
+uint32_t g_wake_event_count[EVENT_ID_END];
+#endif
+
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+struct CMD_FW_ACTIVE_TIME_STATISTICS g_FwActiveTime;
+uint32_t g_FwActiveTimeStatus = 0; /*0: not statictics 1: statistics*/
+#endif
+
+
 /*******************************************************************************
  *                             D A T A   T Y P E S
  *******************************************************************************
@@ -168,6 +180,9 @@ uint32_t au4LogLevel[ENUM_WIFI_LOG_MODULE_NUM] = {ENUM_WIFI_LOG_LEVEL_DEFAULT};
 
 /*record timestamp when wifi last on*/
 OS_SYSTIME lastWifiOnTime;
+/*record wifi on time statistics by screen status*/
+struct WIFI_ON_TIME_STATISTICS wifiOnTimeStatistics;
+
 
 /* 4 2007/06/26, mikewu, now we don't use this, we just fix the number of wlan
  *               device to 1
@@ -851,7 +866,53 @@ unsigned int _cfg80211_classify8021d(struct sk_buff *skb)
 	return dscp >> 5;
 }
 #endif
+void updateWifiOnTimeStatistics(void)
+{
+	OS_SYSTIME currentTime;
+	struct net_device *prDev = NULL;
+	struct GLUE_INFO *prGlueInfo = NULL;
 
+	if ((u4WlanDevNum == 0)
+	|| (u4WlanDevNum > CFG_MAX_WLAN_DEVICES)) {
+		return;
+	}
+
+	prDev = arWlanDevInfo[u4WlanDevNum - 1].prDev;
+	if (!prDev)
+		return;
+
+	prGlueInfo = *((struct GLUE_INFO **) netdev_priv(prDev));
+	if (!prGlueInfo)
+		return;
+
+	DBGLOG(INIT, LOUD, "updateWifiOnTimeStatistics with ScreenStatusFlag[%d]\n", prGlueInfo->fgIsInSuspendMode);
+
+	if (kalHaltLock(KAL_HALT_LOCK_TIMEOUT_NORMAL_CASE))
+		return;
+	if (kalIsHalted()) {
+		kalHaltUnlock();
+		return;
+	}
+
+	/*get current timestamp*/
+	GET_CURRENT_SYSTIME(&currentTime);
+
+	if (prGlueInfo->fgIsInSuspendMode) { /*need to update u4WifiOnTimeDuringScreenOff*/
+		wifiOnTimeStatistics.u4WifiOnTimeDuringScreenOff +=
+			currentTime - wifiOnTimeStatistics.lastUpdateTime;
+		DBGLOG(INIT, LOUD, "update u4WifiOnTimeDuringScreenOff to %u\n",
+			wifiOnTimeStatistics.u4WifiOnTimeDuringScreenOff);
+	} else { /*need to update u4WifiOnTimeDuringScreenOn*/
+		wifiOnTimeStatistics.u4WifiOnTimeDuringScreenOn +=
+			currentTime - wifiOnTimeStatistics.lastUpdateTime;
+		DBGLOG(INIT, LOUD, "update u4WifiOnTimeDuringScreenOn to %u\n",
+			wifiOnTimeStatistics.u4WifiOnTimeDuringScreenOn);
+	}
+
+	/*update lastUpdateTime*/
+	wifiOnTimeStatistics.lastUpdateTime = currentTime;
+	kalHaltUnlock();
+}
 #if KERNEL_VERSION(3, 14, 0) <= LINUX_VERSION_CODE
 u16 wlanSelectQueue(struct net_device *dev,
 		    struct sk_buff *skb,
@@ -1614,15 +1675,6 @@ static int wlanOpen(struct net_device *prDev)
 
 
 	netif_tx_start_all_queues(prDev);
-/* fos_change begin */
-#if CFG_SUPPORT_WAKEUP_STATISTICS
-	/* Initialize arWakeupStatistic */
-	kalMemSet(prGlueInfo->prAdapter->arWakeupStatistic, 0,
-		  sizeof(prGlueInfo->prAdapter->arWakeupStatistic));
-	/* Initialize wake_event_count */
-	kalMemSet(prGlueInfo->prAdapter->wake_event_count, 0,
-		  sizeof(prGlueInfo->prAdapter->wake_event_count));
-#endif
 #if CFG_SUPPORT_EXCEPTION_STATISTICS
 	kalMemSet(prGlueInfo->prAdapter->beacon_timeout_count, 0,
 			sizeof(prGlueInfo->prAdapter->beacon_timeout_count));
@@ -3933,8 +3985,7 @@ int32_t wlanOnWhenProbeSuccess(struct GLUE_INFO *prGlueInfo,
 	update_driver_loaded_status(prGlueInfo->u4ReadyFlag);
 	fgSimplifyResetFlow = FALSE;
 
-	if (!bAtResetFlow)
-		kalSetHalted(FALSE);
+	kalSetHalted(FALSE);
 	wlanDbgGetGlobalLogLevel(ENUM_WIFI_LOG_MODULE_FW,
 				 &u4LogLevel);
 	if (u4LogLevel > ENUM_WIFI_LOG_LEVEL_DEFAULT)
@@ -4111,6 +4162,11 @@ static int32_t wlanOnAtReset(void)
 		FAIL_REASON_NUM
 	} eFailReason = FAIL_REASON_NUM;
 
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+	struct CMD_FW_ACTIVE_TIME_STATISTICS rCmdFwActiveTime = {0};
+	int32_t rCmdStatus = WLAN_STATUS_SUCCESS;
+#endif
+
 	DBGLOG(INIT, INFO, "Driver On during Reset\n");
 
 	fgSimplifyResetFlow = FALSE;
@@ -4170,6 +4226,21 @@ static int32_t wlanOnAtReset(void)
 		wlanOnPreNetRegister(prGlueInfo, prAdapter,
 				     prAdapter->chip_info, TRUE);
 
+	} while (FALSE);
+
+	if (rStatus == WLAN_STATUS_SUCCESS) {
+		wlanOnWhenProbeSuccess(prGlueInfo, prAdapter, TRUE);
+		DBGLOG(INIT, INFO, "reset success\n");
+
+		/* fos_change begin*/
+		prHifInfo = &prGlueInfo->rHifInfo;
+		prErrRecoveryCtrl = &prHifInfo->rErrRecoveryCtl;
+
+		DBGLOG(HAL, INFO, "Re-init recovery flag\n");
+		prHifInfo->fgIsErrRecovery = FALSE;
+		nicSerStartTxRx(prAdapter);
+		prErrRecoveryCtrl->eErrRecovState = ERR_RECOV_STOP_IDLE; /* fos_change end*/
+
 		/* Resend schedule scan */
 		prAdapter->rWifiVar.rConnSettings.fgIsScanReqIssued = FALSE;
 		prAdapter->rWifiVar.rScanInfo.fgSchedScanning = FALSE;
@@ -4186,21 +4257,6 @@ static int32_t wlanOnAtReset(void)
 
 		kalMemZero(&prGlueInfo->rFtIeForTx,
 			sizeof(prGlueInfo->rFtIeForTx));
-
-	} while (FALSE);
-
-	if (rStatus == WLAN_STATUS_SUCCESS) {
-		wlanOnWhenProbeSuccess(prGlueInfo, prAdapter, TRUE);
-		DBGLOG(INIT, INFO, "reset success\n");
-
-		/* fos_change begin*/
-		prHifInfo = &prGlueInfo->rHifInfo;
-		prErrRecoveryCtrl = &prHifInfo->rErrRecoveryCtl;
-
-		DBGLOG(HAL, INFO, "Re-init recovery flag\n");
-		prHifInfo->fgIsErrRecovery = FALSE;
-		nicSerStartTxRx(prAdapter);
-		prErrRecoveryCtrl->eErrRecovState = ERR_RECOV_STOP_IDLE; /* fos_change end*/
 
 		/* Send disconnect */
 		if (prAdapter->prAisBssInfo->eConnectionState ==
@@ -4248,6 +4304,27 @@ static int32_t wlanOnAtReset(void)
 		}
 #endif
 	}
+
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+	/*only need to enable again if the original status is enable*/
+	if (g_FwActiveTimeStatus && (WLAN_STATUS_SUCCESS == rStatus)) {
+		rCmdFwActiveTime.u4Action = FW_ACTIVE_TIME_STATISTICS_ACTION_START;
+		rCmdStatus = kalIoctl(prGlueInfo, wlanoidSetFwActiveTimeStatistics,
+			&rCmdFwActiveTime,
+			sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS),
+			FALSE, FALSE, TRUE, &u4BufLen);
+		if (rCmdStatus != WLAN_STATUS_SUCCESS) {
+			DBGLOG(INIT, WARN, "fail to enable fw active time statistics\n");
+			g_FwActiveTimeStatus = 0;
+		}
+	}
+#endif
+	/*update lastUpdateTime*/
+	if (WLAN_STATUS_SUCCESS == rStatus) {
+		GET_CURRENT_SYSTIME(&(wifiOnTimeStatistics.lastUpdateTime));
+		DBGLOG(INIT, LOUD, "only need to update lastUpdateTime when wifi on\n");
+	}
+
 	return rStatus;
 }
 #endif
@@ -4309,6 +4386,45 @@ static void wlanDrvCommonWork(struct work_struct *work)
 	}
 }
 
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+static void wlanBackupFwActiveTimeStatistics(void)
+{
+	struct CMD_FW_ACTIVE_TIME_STATISTICS rCmdFwActiveTime = {0};
+	uint32_t u4BufLen = 0;
+	uint32_t rStatus = WLAN_STATUS_SUCCESS;
+	struct net_device *prDev = NULL;
+	struct GLUE_INFO *prGlueInfo = NULL;
+
+	if ((u4WlanDevNum == 0)
+	|| (u4WlanDevNum > CFG_MAX_WLAN_DEVICES)) {
+		return;
+	}
+
+	prDev = arWlanDevInfo[u4WlanDevNum - 1].prDev;
+	if (!prDev)
+		return;
+
+	prGlueInfo = *((struct GLUE_INFO **) netdev_priv(prDev));
+	if (!prGlueInfo)
+		return;
+
+	/*need to read fw active time statistics before remove wlan*/
+	rCmdFwActiveTime.u4Action = FW_ACTIVE_TIME_STATISTICS_ACTION_GET;
+	rStatus = kalIoctl(prGlueInfo,
+		wlanoidGetFwActiveTimeStatistics,
+		&rCmdFwActiveTime,
+		sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS),
+		TRUE, TRUE, TRUE, &u4BufLen);
+
+	/*update driver statistics*/
+	if (WLAN_STATUS_SUCCESS == rStatus) {
+		g_FwActiveTime.u4TimeDuringScreenOn += rCmdFwActiveTime.u4TimeDuringScreenOn;
+		g_FwActiveTime.u4TimeDuringScreenOff += rCmdFwActiveTime.u4TimeDuringScreenOff;
+		g_FwActiveTime.u4HwTimeDuringScreenOn += rCmdFwActiveTime.u4HwTimeDuringScreenOn;
+		g_FwActiveTime.u4HwTimeDuringScreenOff += rCmdFwActiveTime.u4HwTimeDuringScreenOff;
+	}
+}
+#endif
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief Wlan probe function. This function probes and initializes the device.
@@ -4342,6 +4458,12 @@ static int32_t wlanProbe(void *pvData, void *pvDriverData)
 	u_int8_t bRet = FALSE;
 	struct REG_INFO *prRegInfo;
 	struct mt66xx_chip_info *prChipInfo;
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+	struct CMD_FW_ACTIVE_TIME_STATISTICS rCmdFwActiveTime = {0};
+	int32_t rCmdStatus = WLAN_STATUS_SUCCESS;
+	uint32_t u4BufLen = 0;
+#endif
+
 
 #if CFG_CHIP_RESET_SUPPORT
 	if (fgSimplifyResetFlow)
@@ -4514,6 +4636,29 @@ static int32_t wlanProbe(void *pvData, void *pvDriverData)
 		}
 	}
 
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+	if (WLAN_STATUS_SUCCESS == i4Status) {
+		/*always enable this feature when wifi on*/
+		rCmdFwActiveTime.u4Action = FW_ACTIVE_TIME_STATISTICS_ACTION_START;
+		rCmdStatus = kalIoctl(prGlueInfo, wlanoidSetFwActiveTimeStatistics,
+			&rCmdFwActiveTime,
+			sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS),
+			FALSE, FALSE, TRUE, &u4BufLen);
+		if (rCmdStatus != WLAN_STATUS_SUCCESS) {
+			DBGLOG(INIT, WARN, "fail to enable fw active time statistics\n");
+			g_FwActiveTimeStatus = 0;
+		} else {
+			g_FwActiveTimeStatus = 1;
+		}
+	}
+#endif
+
+	/*update lastUpdateTime*/
+	if (WLAN_STATUS_SUCCESS == i4Status) {
+		GET_CURRENT_SYSTIME(&(wifiOnTimeStatistics.lastUpdateTime));
+		DBGLOG(INIT, LOUD, "only need to update lastUpdateTime when wifi on\n");
+	}
+
 	return i4Status;
 }				/* end of wlanProbe() */
 
@@ -4536,6 +4681,14 @@ static void wlanRemove(void)
 	u_int8_t fgResult = FALSE;
 
 	DBGLOG(INIT, INFO, "Remove wlan!\n");
+
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+	if (g_FwActiveTimeStatus)
+		wlanBackupFwActiveTimeStatistics();
+#endif
+
+	/*need to update wifi on time statistics*/
+	updateWifiOnTimeStatistics();
 
 #if CFG_CHIP_RESET_SUPPORT
 	/* During chip reset, use simplify remove flow first

@@ -1247,105 +1247,6 @@ static int mtkfb_ioctl(struct fb_info *info, unsigned int cmd,
 		up(&sem_early_suspend);
 		return r;
 	}
-	case MTKFB_CAPTURE_FRAMEBUFFER:
-	{
-		unsigned long dst_pbuf = 0;
-		unsigned long *src_pbuf = 0;
-		unsigned int pixel_bpp = primary_display_get_bpp() / 8;
-		unsigned int fbsize = DISP_GetScreenHeight() *
-			DISP_GetScreenWidth() * pixel_bpp;
-
-		if (copy_from_user(&dst_pbuf, (void __user *)arg,
-				sizeof(dst_pbuf))) {
-			MTKFB_LOG("[FB]: copy_from_user failed! line:%d\n",
-				__LINE__);
-			return -EFAULT;
-		}
-
-		src_pbuf = vmalloc(fbsize);
-		if (!src_pbuf) {
-			MTKFB_LOG(
-				"[FB]: vmalloc capture src_pbuf failed! line:%d\n",
-				__LINE__);
-			return -EFAULT;
-		}
-
-		dprec_logger_start(DPREC_LOGGER_WDMA_DUMP, 0, 0);
-		r = primary_display_capture_framebuffer_ovl(
-			(unsigned long)src_pbuf, UFMT_BGRA8888);
-		if (r < 0)
-			DISPERR(
-			"primary display capture framebuffer failed!\n");
-		dprec_logger_done(DPREC_LOGGER_WDMA_DUMP, 0, 0);
-		if (copy_to_user((unsigned long *)dst_pbuf,
-				src_pbuf, fbsize)) {
-			MTKFB_LOG("[FB]: copy_to_user failed! line:%d\n",
-				__LINE__);
-			r = -EFAULT;
-		}
-		vfree(src_pbuf);
-		return r;
-	}
-	case MTKFB_SLT_AUTO_CAPTURE:
-	{
-		struct fb_slt_catpure capConfig;
-		unsigned long *src_pbuf = 0;
-		unsigned int format;
-		unsigned int pixel_bpp = primary_display_get_bpp() / 8;
-		unsigned int fbsize = DISP_GetScreenHeight() *
-			DISP_GetScreenWidth() * pixel_bpp;
-
-		if (copy_from_user(&capConfig, (void __user *)arg,
-				sizeof(capConfig))) {
-			MTKFB_LOG("[FB]: copy_from_user failed! line:%d\n",
-				__LINE__);
-			return -EFAULT;
-		}
-
-		switch (capConfig.format) {
-		case MTK_FB_FORMAT_RGB888:
-			format = UFMT_RGB888;
-			break;
-		case MTK_FB_FORMAT_BGR888:
-			format = UFMT_BGR888;
-			break;
-		case MTK_FB_FORMAT_ARGB8888:
-			format = UFMT_ARGB8888;
-			break;
-		case MTK_FB_FORMAT_RGB565:
-			format = UFMT_RGB565;
-			break;
-		case MTK_FB_FORMAT_UYVY:
-			format = UFMT_UYVY;
-			break;
-		case MTK_FB_FORMAT_ABGR8888:
-		default:
-			format = UFMT_ABGR8888;
-			break;
-		}
-		src_pbuf = vmalloc(fbsize);
-		if (!src_pbuf) {
-			MTKFB_LOG(
-				"[FB]: vmalloc capture src_pbuf failed! line:%d\n",
-				__LINE__);
-			return -EFAULT;
-		}
-
-		r = primary_display_capture_framebuffer_ovl(
-				(unsigned long)src_pbuf, format);
-		if (r < 0)
-			DISPERR(
-			"primary display capture framebuffer failed!\n");
-
-		if (copy_to_user((unsigned long *)capConfig.outputBuffer,
-				src_pbuf, fbsize)) {
-			MTKFB_LOG("[FB]: copy_to_user failed! line:%d\n",
-				__LINE__);
-			r = -EFAULT;
-		}
-		vfree(src_pbuf);
-		return r;
-	}
 	case MTKFB_GET_OVERLAY_LAYER_INFO:
 	{
 		struct fb_overlay_layer_info layerInfo;
@@ -2623,11 +2524,6 @@ static int mtkfb_probe(struct platform_device *pdev)
 	int init_state;
 	int r = 0;
 
-#if 0 /*def CONFIG_MTK_IOMMU*/
-	struct ion_client *ion_display_client = NULL;
-	struct ion_handle *ion_display_handle = NULL;
-	size_t temp_va = 0;
-#endif
 	/* struct platform_device *pdev; */
 	long dts_gpio_state = 0;
 
@@ -2672,34 +2568,9 @@ static int mtkfb_probe(struct platform_device *pdev)
 
 	DISPMSG("%s: fb_pa = %pa\n", __func__, &fb_base);
 
-#if 0 /*def CONFIG_MTK_IOMMU*/
-	temp_va = (size_t)ioremap_nocache(fb_base,
-		(fb_base + vramsize - fb_base));
-	fbdev->fb_va_base = (void *)temp_va;
-	ion_display_client = disp_ion_create("disp_fb0");
-	if (ion_display_client == NULL) {
-		DISPERR("%s: fail to create ion\n", __func__);
-		r = -1;
-		goto cleanup;
-	}
-
-	ion_display_handle = disp_ion_alloc(ion_display_client,
-		ION_HEAP_MULTIMEDIA_MAP_MVA_MASK, temp_va,
-		(fb_base + vramsize - fb_base));
-	if (r != 0) {
-		DISPERR("%s: fail to allocate buffer\n", __func__);
-		r = -1;
-		goto cleanup;
-	}
-
-	disp_ion_get_mva(ion_display_client,
-		ion_display_handle,
-		&fb_pa,
-		DISP_M4U_PORT_DISP_OVL0);
-#else
 	disp_hal_allocate_framebuffer(fb_base, (fb_base + vramsize - 1),
 		(unsigned long *)(&fbdev->fb_va_base), &fb_pa);
-#endif
+
 	fbdev->fb_pa_base = fb_base;
 
 	primary_display_set_frame_buffer_address(
@@ -2795,17 +2666,6 @@ static int mtkfb_probe(struct platform_device *pdev)
 	if (disp_helper_get_stage() != DISP_HELPER_STAGE_NORMAL)
 		primary_display_diagnose();
 
-
-	/* this function will get fb_heap base address to ion
-	 * for management frame buffer
-	 */
-#ifdef MTK_FB_ION_SUPPORT
-#ifndef FREE_FB_BUFFER
-	pr_info("%s ion_drv_create_FB_heap\n", __func__);
-	ion_drv_create_FB_heap(mtkfb_get_fb_base(),
-		mtkfb_get_fb_size() - DAL_GetLayerSize());
-#endif
-#endif
 	fbdev->state = MTKFB_ACTIVE;
 
 #if 0 /* CONFIG_FPGA_EARLY_PORTING */

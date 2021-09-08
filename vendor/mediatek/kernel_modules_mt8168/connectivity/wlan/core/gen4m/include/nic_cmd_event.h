@@ -573,6 +573,9 @@ enum ENUM_CMD_ID {
 #if CFG_SUPPORT_QA_TOOL
 	CMD_ID_ACCESS_RX_STAT,	/* 0xc8 (Query) */
 #endif /* CFG_SUPPORT_QA_TOOL */
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+	CMD_ID_FW_ACTIVE_TIME_STATISTICS = 0xc9, /*0xc9 (Set / Query)*/
+#endif
 	CMD_ID_CHIP_CONFIG = 0xCA,	/* 0xca (Set / Query) */
 	CMD_ID_STATS_LOG = 0xCB,	/* 0xcb (Set) */
 
@@ -681,6 +684,9 @@ enum ENUM_EVENT_ID {
 	EVENT_ID_DBDC_SWITCH_DONE = 0x78,
 	EVENT_ID_GET_CNM = 0x79,
 	EVENT_ID_TDLS = 0x80,	/* TDLS event_id */
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+	EVENT_ID_FW_TIME_STATISTICS = 0x81,
+#endif
 	EVENT_ID_LOG_UI_INFO = 0x8D,
 
 	EVENT_ID_UPDATE_COEX_PHYRATE = 0x90,	/* 0x90 (Unsolicited) */
@@ -3687,6 +3693,15 @@ struct EVENT_OPMODE_CHANGE {
 	uint8_t  aucPadding2[63];
 };
 
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+struct EVENT_FW_ACTIVE_TIME_STATISTICS {
+	uint32_t u4TimeDuringScreenOn; /*unit ms*/
+	uint32_t u4TimeDuringScreenOff; /*unit ms*/
+	uint32_t u4HwTimeDuringScreenOn; /*unit ms*/
+	uint32_t u4HwTimeDuringScreenOff; /*unit ms*/
+};
+#endif
+
 /*******************************************************************************
  *                            P U B L I C   D A T A
  *******************************************************************************
@@ -3987,6 +4002,11 @@ void nicOidCmdTimeoutSetAddKey(IN struct ADAPTER *prAdapter,
 void nicCmdEventReportMisc(IN struct ADAPTER *prAdapter,
 			   IN struct CMD_INFO *prCmdInfo,
 			   IN uint8_t *pucEventBuf);
+#endif
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+void nicCmdEventGetFwActiveTimeStatistics(IN struct ADAPTER *prAdapter,
+	IN struct CMD_INFO *prCmdInfo,
+	IN uint8_t *pucEventBuf);
 #endif
 /*******************************************************************************
  *                              F U N C T I O N S

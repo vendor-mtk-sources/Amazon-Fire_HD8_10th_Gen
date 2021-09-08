@@ -1600,6 +1600,11 @@ uint32_t kalPerMonGetInfo(IN struct ADAPTER *prAdapter, IN uint8_t *pucBuf,
 int32_t kalBoostCpu(IN struct ADAPTER *prAdapter, IN uint32_t u4TarPerfLevel,
 	IN uint32_t u4BoostCpuTh);
 uint32_t kalGetCpuBoostThreshold(void);
+#if CFG_SUPPORT_DFS
+void kalIndicateChannelSwitch(IN struct GLUE_INFO *prGlueInfo,
+				IN enum ENUM_CHNL_EXT  eSco,
+				IN uint8_t ucChannelNum);
+#endif
 void kalSetEmiMpuProtection(phys_addr_t emiPhyBase, bool enable);
 void kalSetDrvEmiMpuProtection(phys_addr_t emiPhyBase, uint32_t offset,
 			       uint32_t size);

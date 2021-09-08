@@ -156,8 +156,8 @@ enum WAKEUP_TYPE {
 	WAKEUP_TYPE_NUM
 };
 struct WAKEUP_STATISTIC {
-	uint16_t u2Count;
-	uint16_t u2TimePerHundred;
+	uint32_t u4Count;
+	uint32_t u4TimePerHundred;
 	OS_SYSTIME rStartTime;
 };
 #endif /* fos_change end */

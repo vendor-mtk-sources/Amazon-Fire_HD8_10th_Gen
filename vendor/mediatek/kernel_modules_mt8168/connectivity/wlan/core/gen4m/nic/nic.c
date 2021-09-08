@@ -101,6 +101,10 @@ const uint8_t aucPhyCfg2PhyTypeSet[PHY_CONFIG_NUM] = {
  *                            P U B L I C   D A T A
  *******************************************************************************
  */
+#if CFG_SUPPORT_WAKEUP_STATISTICS
+	extern struct WAKEUP_STATISTIC g_arWakeupStatistic[WAKEUP_TYPE_NUM];
+	extern uint32_t g_wake_event_count[EVENT_ID_END];
+#endif
 
 static struct INT_EVENT_MAP arIntEventMapTable[] = {
 	{WHISR_ABNORMAL_INT, INT_EVENT_ABNORMAL},
@@ -4710,20 +4714,19 @@ void nicIndicateConnectionRxFrame(IN struct ADAPTER *prAdapter,
 void nicUpdateWakeupStatistics(IN struct ADAPTER *prAdapter,
 	IN enum WAKEUP_TYPE intType)
 {
-	struct WAKEUP_STATISTIC *prWakeupSta =
-		&prAdapter->arWakeupStatistic[intType];
+	struct WAKEUP_STATISTIC *prWakeupSta = &g_arWakeupStatistic[intType];
 	OS_SYSTIME rCurrent = 0;
 
-	prWakeupSta->u2Count++;
-	if (prWakeupSta->u2Count % 100 == 0) {
-		if (prWakeupSta->u2Count > 0) {
+	prWakeupSta->u4Count++;
+	if (prWakeupSta->u4Count % 100 == 0) {
+		if (prWakeupSta->u4Count > 0) {
 			GET_CURRENT_SYSTIME(&rCurrent);
-			prWakeupSta->u2TimePerHundred =
+			prWakeupSta->u4TimePerHundred =
 				rCurrent-prWakeupSta->rStartTime;
 		}
 		GET_CURRENT_SYSTIME(&prWakeupSta->rStartTime);
-		DBGLOG(RX, INFO, "wakeup frequency: %d",
-			prWakeupSta->u2TimePerHundred);
+		DBGLOG(RX, INFO, "wakeup frequency: %u",
+			prWakeupSta->u4TimePerHundred);
 	}
 }
 #endif /* fos_change end */

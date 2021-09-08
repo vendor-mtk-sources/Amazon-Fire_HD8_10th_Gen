@@ -1624,11 +1624,7 @@ struct ADAPTER {
 	uint32_t u4BufLen;
 #endif /* CFG_SUPPORT_LINK_QUALITY_MONITOR */
 
-/* fos_change begin */
-#if CFG_SUPPORT_WAKEUP_STATISTICS
-	struct WAKEUP_STATISTIC arWakeupStatistic[WAKEUP_TYPE_NUM];
-	uint32_t wake_event_count[EVENT_ID_END];
-#endif
+
 #if CFG_SUPPORT_EXCEPTION_STATISTICS
 	uint32_t total_beacon_timeout_count;
 	uint32_t beacon_timeout_count[BEACON_TIMEOUT_DUE_2_NUM];

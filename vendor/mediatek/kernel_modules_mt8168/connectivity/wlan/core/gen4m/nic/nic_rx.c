@@ -93,6 +93,10 @@
  *                            P U B L I C   D A T A
  *******************************************************************************
  */
+#if CFG_SUPPORT_WAKEUP_STATISTICS
+extern struct WAKEUP_STATISTIC g_arWakeupStatistic[WAKEUP_TYPE_NUM];
+extern uint32_t g_wake_event_count[EVENT_ID_END];
+#endif
 
 /*******************************************************************************
  *                           P R I V A T E   D A T A
@@ -3785,7 +3789,7 @@ static void nicRxCheckWakeupReason(struct ADAPTER *prAdapter,
 /* fos_change begin */
 #if CFG_SUPPORT_WAKEUP_STATISTICS
 			nicUpdateWakeupStatistics(prAdapter, RX_EVENT_INT);
-			prAdapter->wake_event_count[prEvent->ucEID]++;
+			g_wake_event_count[prEvent->ucEID]++;
 #endif
 #if CFG_SUPPORT_WIFI_POWER_DEBUG
 			glNotifyWakeups(&prEvent->ucEID, WAKE_TYPE_EVENT);

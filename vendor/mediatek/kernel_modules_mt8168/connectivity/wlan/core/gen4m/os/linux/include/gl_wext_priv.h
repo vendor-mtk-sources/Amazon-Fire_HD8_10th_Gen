@@ -212,6 +212,9 @@
 #define PRIV_CMD_DTIM_SKIP_COUNT	48
 #endif /* fos_change end */
 
+#define PRIV_CMD_GET_BAND_WIDTH		51
+
+
 /* 802.3 Objects (Ethernet) */
 #define OID_802_3_CURRENT_ADDRESS           0x01010102
 

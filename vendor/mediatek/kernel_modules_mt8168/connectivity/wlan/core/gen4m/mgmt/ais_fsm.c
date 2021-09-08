@@ -3877,7 +3877,7 @@ void aisPostponedEventOfDisconnTimeout(IN struct ADAPTER *prAdapter,
 	if (prAisFsmInfo->eCurrentState == AIS_STATE_LOOKING_FOR)
 		prAisFsmInfo->eCurrentState = AIS_STATE_IDLE;
 	prConnSettings->fgIsDisconnectedByNonRequest = TRUE;
-	prAisBssInfo->u2DeauthReason = REASON_CODE_BEACON_TIMEOUT;
+	prAisBssInfo->u2DeauthReason = 100 * REASON_CODE_BEACON_TIMEOUT + prAisBssInfo->u2DeauthReason;
 	/* 4 <3> Indicate Disconnected Event to Host immediately. */
 	aisIndicationOfMediaStateToHost(prAdapter,
 					PARAM_MEDIA_STATE_DISCONNECTED, FALSE);

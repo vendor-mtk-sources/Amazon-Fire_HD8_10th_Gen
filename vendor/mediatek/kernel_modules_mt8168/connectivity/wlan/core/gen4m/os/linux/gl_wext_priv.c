@@ -295,7 +295,24 @@
 #define CMD_FW_PARAM				"set_fw_param"
 #endif /* CFG_SUPPORT_EASY_DEBUG */
 
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+#define CMD_FW_ACTIVE_STATISTICS   "fw_active_statistics"
+#endif
+
+#define CMD_WIFI_ON_TIME_STATISTICS "wifi_on_time_statistics"
+
 static uint8_t g_ucMiracastMode = MIRACAST_MODE_OFF;
+
+#if CFG_SUPPORT_WAKEUP_STATISTICS
+extern struct WAKEUP_STATISTIC g_arWakeupStatistic[WAKEUP_TYPE_NUM];
+extern uint32_t g_wake_event_count[EVENT_ID_END];
+#endif
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+extern struct CMD_FW_ACTIVE_TIME_STATISTICS g_FwActiveTime;
+extern uint32_t g_FwActiveTimeStatus;
+#endif
+extern struct WIFI_ON_TIME_STATISTICS wifiOnTimeStatistics;
+extern void updateWifiOnTimeStatistics(void);
 
 struct cmd_tlv {
 	char prefix;
@@ -3245,28 +3262,27 @@ priv_get_string(IN struct net_device *prNetDev,
 	{
 		struct WAKEUP_STATISTIC *prWakeupSta = NULL;
 
-		prWakeupSta = prGlueInfo->prAdapter->arWakeupStatistic;
+		prWakeupSta = g_arWakeupStatistic;
 		pos += kalScnprintf(buf + pos, u4TotalLen - pos,
-				"Abnormal Interrupt:%d\n"
-				"Software Interrupt:%d\n"
-				"TX Interrupt:%d\n"
-				"RX data:%d\n"
-				"RX Event:%d\n"
-				"RX mgmt:%d\n"
-				"RX others:%d\n",
-				prWakeupSta[0].u2Count,
-				prWakeupSta[1].u2Count,
-				prWakeupSta[2].u2Count,
-				prWakeupSta[3].u2Count,
-				prWakeupSta[4].u2Count,
-				prWakeupSta[5].u2Count,
-				prWakeupSta[6].u2Count);
+				"Abnormal Interrupt:%u\n"
+				"Software Interrupt:%u\n"
+				"TX Interrupt:%u\n"
+				"RX data:%u\n"
+				"RX Event:%u\n"
+				"RX mgmt:%u\n"
+				"RX others:%u\n",
+				prWakeupSta[0].u4Count,
+				prWakeupSta[1].u4Count,
+				prWakeupSta[2].u4Count,
+				prWakeupSta[3].u4Count,
+				prWakeupSta[4].u4Count,
+				prWakeupSta[5].u4Count,
+				prWakeupSta[6].u4Count);
 		for (i = 0; i < EVENT_ID_END; i++) {
-			if (prGlueInfo->prAdapter->wake_event_count[i] > 0)
+			if (g_wake_event_count[i] > 0)
 				pos += kalScnprintf(buf + pos, u4TotalLen - pos,
-						"RX EVENT(0x%0x):%d\n", i,
-						prGlueInfo->prAdapter
-						->wake_event_count[i]);
+					"RX EVENT(0x%0x):%u\n", i,
+					g_wake_event_count[i]);
 		}
 	}
 	break;
@@ -3564,6 +3580,24 @@ priv_get_string(IN struct net_device *prNetDev,
 
 #endif
 #endif
+	case PRIV_CMD_GET_BAND_WIDTH:
+	{
+		uint8_t rQueryBandWith;
+
+		rStatus = kalIoctl(prGlueInfo, wlanoidQueryBandWidth,
+				   &rQueryBandWith, sizeof(rQueryBandWith),
+				   TRUE, FALSE, TRUE,
+				   &u4BufLen);
+
+		if (rStatus == WLAN_STATUS_SUCCESS) {
+			pos += kalScnprintf(buf + pos, u4TotalLen - pos,
+						    "bandwidth = %d\n",rQueryBandWith);
+		}
+		else
+			pos += kalScnprintf(buf + pos, u4TotalLen - pos,
+						    "get bandwidth fail\n");
+		break;
+	}
 	default:
 		DBGLOG(REQ, WARN, "get string cmd:0x%x\n", u4SubCmd);
 		break;
@@ -12258,6 +12292,9 @@ int priv_driver_set_suspend_mode(IN struct net_device *prNetDev,
 		DBGLOG(REQ, INFO, "%s: Set suspend mode [%u]\n", __func__,
 		       fgEnable);
 
+		/*need to update wifi on time statistics*/
+		updateWifiOnTimeStatistics();
+
 		prGlueInfo->fgIsInSuspendMode = fgEnable;
 
 		wlanSetSuspendMode(prGlueInfo, fgEnable);
@@ -13914,6 +13951,145 @@ static int priv_driver_set_p2p_noa(IN struct net_device *prNetDev,
 }
 #endif /* CFG_ENABLE_WIFI_DIRECT */
 
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+static int priv_driver_fw_active_time_statistics(IN struct net_device *prNetDev, IN char *pcCommand,
+	IN int i4TotalLen)
+{
+	struct CMD_FW_ACTIVE_TIME_STATISTICS rCmdFwActiveTime = {0};
+	int32_t i4Argc = 0;
+	int8_t *apcArgv[WLAN_CFG_ARGV_MAX] = { 0 };
+	int32_t i4ArgNum = 2;
+	int32_t i4BytesWritten = 0;
+	struct GLUE_INFO * prGlueInfo = NULL;
+	int32_t rStatus = WLAN_STATUS_SUCCESS;
+	uint32_t u4BufLen = 0;
+
+
+	ASSERT(prNetDev);
+	if (GLUE_CHK_PR2(prNetDev, pcCommand) == FALSE)
+		return -1;
+
+	DBGLOG(REQ, LOUD, "command is %s\n", pcCommand);
+	wlanCfgParseArgument(pcCommand, &i4Argc, apcArgv);
+	DBGLOG(REQ, LOUD, "argc is %i\n", i4Argc);
+
+	prGlueInfo = *((struct GLUE_INFO **) netdev_priv(prNetDev));
+	if (NULL == prGlueInfo) {
+		DBGLOG(REQ, ERROR, "invalid parameter\n");
+		return -1;
+	}
+
+	if (i4Argc >= i4ArgNum) {
+		if (strnicmp(apcArgv[1], "start", strlen("start")) == 0) {
+			rCmdFwActiveTime.u4Action = FW_ACTIVE_TIME_STATISTICS_ACTION_START;
+			rStatus = kalIoctl(prGlueInfo, wlanoidSetFwActiveTimeStatistics,
+				&rCmdFwActiveTime,
+				sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS),
+				FALSE, FALSE, TRUE, &u4BufLen);
+			if (rStatus != WLAN_STATUS_SUCCESS) {
+				DBGLOG(REQ, WARN, "fail to enable fw active time statistics\n");
+				return -1;
+			}
+			g_FwActiveTimeStatus = 1;
+		} else if (strnicmp(apcArgv[1], "stop", strlen("stop")) == 0) {
+			rCmdFwActiveTime.u4Action = FW_ACTIVE_TIME_STATISTICS_ACTION_STOP;
+			rStatus = kalIoctl(prGlueInfo, wlanoidSetFwActiveTimeStatistics,
+				&rCmdFwActiveTime,
+				sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS),
+				FALSE, FALSE, TRUE, &u4BufLen);
+			if (rStatus != WLAN_STATUS_SUCCESS) {
+				DBGLOG(REQ, WARN, "fail to disable fw active time statistics\n");
+				return -1;
+			}
+			g_FwActiveTimeStatus = 0;
+		} else if (strnicmp(apcArgv[1], "get", strlen("get")) == 0) {
+			rCmdFwActiveTime.u4Action = FW_ACTIVE_TIME_STATISTICS_ACTION_GET;
+			rStatus = kalIoctl(prGlueInfo, wlanoidGetFwActiveTimeStatistics,
+				&rCmdFwActiveTime,
+				sizeof(struct CMD_FW_ACTIVE_TIME_STATISTICS),
+				TRUE, TRUE, TRUE, &u4BufLen);
+
+			/*construct statistics to upper layer*/
+			if (rStatus != WLAN_STATUS_SUCCESS) {
+				DBGLOG(REQ, WARN, "unable to get fw active time statistics\n");
+				return -1;
+			}
+
+			/*update driver statistics*/
+			g_FwActiveTime.u4TimeDuringScreenOn += rCmdFwActiveTime.u4TimeDuringScreenOn;
+			g_FwActiveTime.u4TimeDuringScreenOff += rCmdFwActiveTime.u4TimeDuringScreenOff;
+			g_FwActiveTime.u4HwTimeDuringScreenOn += rCmdFwActiveTime.u4HwTimeDuringScreenOn;
+			g_FwActiveTime.u4HwTimeDuringScreenOff += rCmdFwActiveTime.u4HwTimeDuringScreenOff;
+
+			i4BytesWritten = snprintf(pcCommand, i4TotalLen,
+				"TimeDuringScreenOn[%u] TimeDuringScreenOff[%u] ",
+				g_FwActiveTime.u4TimeDuringScreenOn,
+				g_FwActiveTime.u4TimeDuringScreenOff);
+			i4BytesWritten += snprintf(pcCommand + i4BytesWritten, i4TotalLen - i4BytesWritten,
+				"HwTimeDuringScreenOn[%u] HwTimeDuringScreenOff[%u]\n",
+				g_FwActiveTime.u4HwTimeDuringScreenOn,
+				g_FwActiveTime.u4HwTimeDuringScreenOff);
+			return i4BytesWritten;
+
+		} else {
+			DBGLOG(REQ, ERROR, "invalid parameter\n");
+			return -1;
+		}
+	}else {
+		DBGLOG(REQ, ERROR, "invalid parameter\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+#endif
+
+static int priv_driver_wifi_on_time_statistics(IN struct net_device *prNetDev, IN char *pcCommand,
+	IN int i4TotalLen)
+{
+	int32_t i4Argc = 0;
+	int8_t *apcArgv[WLAN_CFG_ARGV_MAX] = { 0 };
+	int32_t i4ArgNum = 2;
+	int32_t i4BytesWritten = 0;
+	struct GLUE_INFO * prGlueInfo = NULL;
+
+	ASSERT(prNetDev);
+	if (GLUE_CHK_PR2(prNetDev, pcCommand) == FALSE)
+		return -1;
+
+	DBGLOG(REQ, LOUD, "command is %s\n", pcCommand);
+	wlanCfgParseArgument(pcCommand, &i4Argc, apcArgv);
+	DBGLOG(REQ, LOUD, "argc is %i\n", i4Argc);
+
+	prGlueInfo = *((struct GLUE_INFO **) netdev_priv(prNetDev));
+	if (NULL == prGlueInfo) {
+		DBGLOG(REQ, ERROR, "invalid parameter\n");
+		return -1;
+	}
+
+	if (i4Argc >= i4ArgNum) {
+	if (strnicmp(apcArgv[1], "get", strlen("get")) == 0) {
+		/*need to update wifi on time statistics*/
+		updateWifiOnTimeStatistics();
+
+		/*construct statistics to upper layer*/
+		i4BytesWritten = snprintf(pcCommand, i4TotalLen,
+			"TimeDuringScreenOn[%u] TimeDuringScreenOff[%u] ",
+			wifiOnTimeStatistics.u4WifiOnTimeDuringScreenOn,
+			wifiOnTimeStatistics.u4WifiOnTimeDuringScreenOff);
+		return i4BytesWritten;
+	} else {
+		DBGLOG(REQ, ERROR, "invalid parameter\n");
+		return -1;
+	}
+	} else {
+		DBGLOG(REQ, ERROR, "invalid parameter\n");
+		return -1;
+	}
+	return 0;
+}
+
 typedef int(*PRIV_CMD_FUNCTION) (
 		IN struct net_device *prNetDev,
 		IN char *pcCommand,
@@ -14051,6 +14227,10 @@ struct PRIV_CMD_HANDLER priv_cmd_handlers[] = {
 	{CMD_GET_WIFI_TYPE, priv_driver_get_wifi_type},
 	{CMD_GET_MU_RX_PKTCNT, priv_driver_show_rx_stat},
 	{CMD_SET_PWR_CTRL, priv_driver_set_power_control},
+#if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
+	{CMD_FW_ACTIVE_STATISTICS, priv_driver_fw_active_time_statistics},
+#endif
+	{CMD_WIFI_ON_TIME_STATISTICS, priv_driver_wifi_on_time_statistics},
 };
 
 int32_t priv_driver_cmds(IN struct net_device *prNetDev, IN int8_t *pcCommand,

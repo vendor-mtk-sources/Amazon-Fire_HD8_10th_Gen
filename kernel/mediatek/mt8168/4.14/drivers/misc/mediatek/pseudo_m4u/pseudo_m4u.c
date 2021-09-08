@@ -52,8 +52,8 @@
 #define M4U_LOG_LEVEL_MID	2
 #define M4U_LOG_LEVEL_LOW	1
 
-int m4u_log_level;
-int m4u_log_to_uart = 1;
+static int m4u_log_level;
+static int m4u_log_to_uart = 1;
 
 #define _M4ULOG(level, string, args...) \
 do { \
@@ -78,7 +78,7 @@ do { \
 		pr_err("PSEUDO M4U %s, %d\n", __func__, __LINE__); \
 } while (0)
 
-LIST_HEAD(pseudo_sglist);
+static LIST_HEAD(pseudo_sglist);
 /* this is the mutex lock to protect mva_sglist->list*/
 static DEFINE_MUTEX(pseudo_list_mutex);
 
@@ -91,7 +91,8 @@ static struct device *pseudo_m4u_dev;
 
 /* garbage collect related */
 
-struct m4u_device *gM4uDev;
+static struct sg_table *m4u_create_sgtable(unsigned long va, unsigned int size,
+					   struct m4u_buf_info_t *buf_info);
 
 /*
  * will define userspace port id according to kernel
@@ -444,8 +445,9 @@ static void m4u_show_pte(struct mm_struct *mm, unsigned long addr)
  * since the device have been attached, then we get from the dma_ops->map_sg is
  * arm_iommu_map_sg
  */
-int __m4u_alloc_mva(int port, unsigned long va, unsigned int size,
-			struct sg_table *sg_table, unsigned int *retmva)
+static int __m4u_alloc_mva(int port, unsigned long va, unsigned int size,
+			struct sg_table *sg_table, unsigned int *retmva,
+			struct m4u_buf_info_t *buf_info) /* only for vec free */
 {
 	struct mva_sglist *mva_sg;
 	struct sg_table *table = NULL;
@@ -488,7 +490,7 @@ int __m4u_alloc_mva(int port, unsigned long va, unsigned int size,
 	}
 
 	if (!table) {
-		table = m4u_create_sgtable(va, size);
+		table = m4u_create_sgtable(va, size, buf_info);
 		/* table = pseudo_get_sg(port, va, size); */
 		if (IS_ERR_OR_NULL(table)) {
 			table = NULL;
@@ -664,6 +666,8 @@ int pseudo_alloc_mva(struct m4u_client_t *client, int port,
 	offset = m4u_va_align(&va_align, &size_align);
 	/* pbuf_info for userspace compatible */
 	pbuf_info = m4u_alloc_buf_info();
+	if (!pbuf_info)
+		return -ENOMEM;
 
 	pbuf_info->va = va;
 	pbuf_info->port = port;
@@ -672,7 +676,8 @@ int pseudo_alloc_mva(struct m4u_client_t *client, int port,
 	pbuf_info->flags = flags;
 	pbuf_info->sg_table = sg_table;
 
-	ret = __m4u_alloc_mva(port, va_align, size_align, sg_table, &mva_align);
+	ret = __m4u_alloc_mva(port, va_align, size_align, sg_table, &mva_align,
+			      pbuf_info);
 	if (ret) {
 		m4u_pr_err("error alloc mva, %s, %d\n", __func__, __LINE__);
 		mva = 0;
@@ -744,11 +749,8 @@ struct sg_table *m4u_del_sgtable(unsigned int mva)
 	struct mva_sglist *entry, *tmp;
 	struct sg_table *table;
 
-	m4u_pr_debug("%s, %d, mva = 0x%x\n", __func__, __LINE__, mva);
 	mutex_lock(&pseudo_list_mutex);
 	list_for_each_entry_safe(entry, tmp, &pseudo_sglist, list) {
-		m4u_pr_debug("%s, %d, entry->mva = 0x%x\n", __func__, __LINE__,
-			entry->mva);
 		if (entry->mva == mva) {
 			list_del(&entry->list);
 			mutex_unlock(&pseudo_list_mutex);
@@ -1123,22 +1125,27 @@ static struct frame_vector *m4u_get_vaddr_framevec(unsigned long va_base,
 	struct vm_area_struct *vma;
 	int gup_flags;
 
+	down_read(&current->mm->mmap_sem);
 	vma = find_vma(mm, va_base);
 	if (!vma) {
 		m4u_pr_err("%s: pid %d, get mva fail, va 0x%lx(pgnum %d)\n",
 			__func__, current->pid, va_base, nr_pages);
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		goto out_ret;
 	}
 	if ((va_base + (nr_pages << PAGE_SHIFT)) > vma->vm_end) {
 		m4u_pr_err("%s: pid %d, va 0x%lx(pgnum %d), vma 0x%lx~0x%lx\n",
 			__func__, current->pid, va_base, nr_pages,
 			vma->vm_start, vma->vm_end);
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		goto out_ret;
 	}
 
 	vec = frame_vector_create(nr_pages);
-	if (!vec)
-		return ERR_PTR(-ENOMEM);
+	if (!vec) {
+		ret = -ENOMEM;
+		goto out_ret;
+	}
 
 	gup_flags = FOLL_TOUCH | FOLL_POPULATE | FOLL_MLOCK;
 	if (vma->vm_flags & VM_LOCKONFAULT)
@@ -1166,12 +1173,15 @@ static struct frame_vector *m4u_get_vaddr_framevec(unsigned long va_base,
 		goto m4u_get_frmvec_rls;
 	}
 
+	up_read(&current->mm->mmap_sem);
 	return vec;
 
 m4u_get_frmvec_rls:
 	put_vaddr_frames(vec);
 m4u_get_frmvec_dst:
 	frame_vector_destroy(vec);
+out_ret:
+	up_read(&current->mm->mmap_sem);
 	return ERR_PTR(ret);
 }
 
@@ -1182,7 +1192,9 @@ static void m4u_put_vaddr_framevec(struct frame_vector *vec)
 }
 
 /* make a sgtable for virtual buffer */
-struct sg_table *m4u_create_sgtable(unsigned long va, unsigned int size)
+static struct sg_table *
+m4u_create_sgtable(unsigned long va, unsigned int size,
+		   struct m4u_buf_info_t *buf_info) /* only for vec free */
 {
 	struct sg_table *table = NULL;
 	struct scatterlist *s;
@@ -1233,11 +1245,13 @@ struct sg_table *m4u_create_sgtable(unsigned long va, unsigned int size)
 		sg_dma_len(s) = 0;
 	}
 
-m4u_create_sgtbl_out:
-	m4u_put_vaddr_framevec(vec);
+	buf_info->vec = vec;
 
+m4u_create_sgtbl_out:
 	if (ret) {
 		kfree(table);
+		m4u_put_vaddr_framevec(vec);
+		buf_info->vec = NULL;
 		m4u_pr_err("%s fail %d: va = 0x%lx, sz = 0x%x, pgnum = %d\n",
 			__func__, ret, va, size, page_num);
 		return ERR_PTR(ret);
@@ -1255,6 +1269,7 @@ int __m4u_dealloc_mva(int eModuleID,
 	struct sg_table *table = NULL;
 	int kernelport = m4u_user2kernel_port(eModuleID);
 	struct device *dev = m4u_get_larbdev(kernelport);
+	struct m4u_buf_info_t *m4u_buf_info;
 	unsigned long addr_align = MVA;
 	unsigned int size_align = BufSize;
 	int offset;
@@ -1272,36 +1287,39 @@ int __m4u_dealloc_mva(int eModuleID,
 	if (!sg_table)
 		offset = m4u_va_align(&addr_align, &size_align);
 
-	if (sg_table) {
-		struct m4u_buf_info_t *m4u_buf_info;
 
-		m4u_buf_info = m4u_client_find_buf(ion_m4u_client, addr_align,
-						   1);
-		if (m4u_buf_info && m4u_buf_info->mva != addr_align)
-			m4u_pr_err("warning: %s, %d, mva addr are not same\n",
-				__func__, __LINE__);
-		table = m4u_del_sgtable(addr_align);
-		if (!table) {
-			m4u_pr_err("%s-%d could not find the table from mva 0x%x\n",
-				__func__, __LINE__, MVA);
-			m4u_pr_err("m4u_dealloc_mva, module = %s, addr = 0x%lx,size = 0x%x, MVA = 0x%x, mva_end = 0x%x\n",
-				m4u_get_port_name(kernelport), BufAddr,
-				BufSize, MVA, MVA + BufSize - 1);
-			dump_stack();
-			return -EINVAL;
-		}
-
-		if (sg_page(table->sgl) != sg_page(sg_table->sgl)) {
-			m4u_pr_err("%s, %d, error, sg have not been added\n",
-				__func__, __LINE__);
-			return -EINVAL;
-		}
-
-		m4u_free_buf_info(m4u_buf_info);
+	m4u_buf_info = m4u_client_find_buf(ion_m4u_client, addr_align, 1);
+	if (!m4u_buf_info) {
+		m4u_pr_err("%s-%d error: can NOT fine buf-info mva %lx.",
+			   __func__, __LINE__, addr_align);
+		return -EINVAL;
 	}
 
-	if (!table)
-		table = m4u_del_sgtable(addr_align);
+	if (m4u_buf_info->mva != addr_align)
+		m4u_pr_err("warning: %s, %d, mva addr are not same\n",
+				__func__, __LINE__);
+
+	if (m4u_buf_info->vec)
+		m4u_put_vaddr_framevec(m4u_buf_info->vec);
+
+	table = m4u_del_sgtable(addr_align);
+	if (!table) {
+		m4u_pr_err("%s-%d could not find the table from mva 0x%x\n",
+				__func__, __LINE__, MVA);
+		m4u_pr_err("m4u_dealloc_mva, module = %s, addr = 0x%lx,size = 0x%x, MVA = 0x%x, mva_end = 0x%x\n",
+				m4u_get_port_name(kernelport), BufAddr,
+				BufSize, MVA, MVA + BufSize - 1);
+		dump_stack();
+		return -EINVAL;
+	}
+
+	if (sg_table && sg_page(table->sgl) != sg_page(sg_table->sgl)) {
+		m4u_pr_err("%s, %d, error, sg have not been added\n",
+				__func__, __LINE__);
+		return -EINVAL;
+	}
+
+	m4u_free_buf_info(m4u_buf_info);
 
 	if (table) {
 		/* Free iova and unmap pgtable items.*/
@@ -2722,6 +2740,7 @@ static const struct file_operations g_stMTK_M4U_fops = {
 static int pseudo_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct m4u_device *gM4uDev;
 #ifndef CONFIG_ARM64
 	struct device_node *node = dev->of_node;
 	struct platform_device *pimudev;

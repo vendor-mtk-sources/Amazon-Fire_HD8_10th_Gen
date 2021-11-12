@@ -762,6 +762,10 @@ static const struct nl80211_vendor_cmd_info
 		.vendor_id = OUI_MTK,
 		.subcmd = WIFI_EVENT_DRIVER_ERROR
 	},
+	{
+		.vendor_id = OUI_AMAZON,
+		.subcmd = AMZN_NL80211_VENDOR_SUBCMD_ROAMING_INFO
+	},
 };
 #endif
 

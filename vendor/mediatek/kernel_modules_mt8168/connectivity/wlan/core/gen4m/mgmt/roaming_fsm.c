@@ -389,6 +389,9 @@ void roamingFsmSteps(IN struct ADAPTER *prAdapter,
 		ROAMING_DISCOVERY_TIMEOUT_SEC;
 	uint32_t u4ReqScan = FALSE;
 #endif
+	struct AIS_SPECIFIC_BSS_INFO *prAisSpecBssInfo =
+	    &prAdapter->rWifiVar.rAisSpecificBssInfo;
+	struct LINK_MGMT *prAPlist = &prAisSpecBssInfo->rNeighborApList;
 
 	prRoamingFsmInfo = (struct ROAMING_INFO *) &
 			   (prAdapter->rWifiVar.rRoamingInfo);
@@ -449,7 +452,8 @@ void roamingFsmSteps(IN struct ADAPTER *prAdapter,
 #else
 			fgIsNeedScan = TRUE;
 #endif
-
+			if ((!LINK_IS_EMPTY(&(prAPlist->rUsingLink))) && prRoamingFsmInfo->eRoaming_type != ROAMING_11V)
+				prRoamingFsmInfo->eRoaming_type = ROAMING_11K;
 			cnmTimerStopTimer(
 				prAdapter,
 				&prRoamingFsmInfo->rWaitCandidateTimer);
@@ -485,6 +489,7 @@ void roamingFsmSteps(IN struct ADAPTER *prAdapter,
 				if (prBssDesc &&
 				    (prBssDesc->aucRrmCap[0] &
 				     BIT(RRM_CAP_INFO_NEIGHBOR_REPORT_BIT))) {
+				        prRoamingFsmInfo->eRoaming_type = ROAMING_11K;
 					aisSendNeighborRequest(prAdapter);
 					cnmTimerStartTimer(
 						prAdapter,
@@ -582,6 +587,8 @@ void roamingFsmRunEventDiscovery(IN struct ADAPTER *prAdapter,
 	if (!(prRoamingFsmInfo->fgIsEnableRoaming))
 		return;
 
+	prRoamingFsmInfo->u4RoamingStartTime = (OS_SYSTIME) kalGetTimeTick();
+	prRoamingFsmInfo->eRoaming_type = ROAMING_LEGACY;
 	DBGLOG(ROAMING, EVENT,
 	       "EVENT-ROAMING DISCOVERY: Current Time = %d\n",
 	       kalGetTimeTick());
@@ -625,6 +632,7 @@ void roamingFsmRunEventDiscovery(IN struct ADAPTER *prAdapter,
 				arBssid, TRUE, &rSsid);
 		if (prBssDesc) {
 			prBssDesc->ucRCPI = (uint8_t)(prTransit->u2Data & 0xff);
+			prRoamingFsmInfo->oldApRssi = RCPI_TO_dBm(prBssDesc->ucRCPI);
 			DBGLOG(ROAMING, INFO, "ucRCPI %u\n",
 				prBssDesc->ucRCPI);
 		}
@@ -706,6 +714,9 @@ void roamingFsmRunEventFail(IN struct ADAPTER *prAdapter,
 
 	prRoamingFsmInfo = (struct ROAMING_INFO *) &
 			   (prAdapter->rWifiVar.rRoamingInfo);
+
+	/* add for fos7*/
+	kalIndicateRoamingMetrics(prAdapter->prGlueInfo);
 
 	/* Check Roaming Conditions */
 	if (!(prRoamingFsmInfo->fgIsEnableRoaming))

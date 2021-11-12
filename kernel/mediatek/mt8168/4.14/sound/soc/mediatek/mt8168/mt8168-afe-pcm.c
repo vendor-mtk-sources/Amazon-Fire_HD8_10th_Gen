@@ -2442,10 +2442,12 @@ static void mt8168_afe_int_adda_shutdown(struct snd_pcm_substream *substream,
 	struct mt8168_afe_private *afe_priv = afe->platform_priv;
 	struct mt8168_be_dai_data *be =
 		&afe_priv->be_data[dai->id - MT8168_AFE_BACKEND_BASE];
+	struct mt8168_control_data *ctrl_data = &afe_priv->ctrl_data;
 	unsigned int stream = substream->stream;
 
 	if (be->prepared[stream]) {
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			ctrl_data->dl_p_state = false;
 			mt8168_afe_set_adda_out_enable(afe, false);
 			mt8168_afe_set_i2s_out_enable(afe, false);
 		} else
@@ -2472,6 +2474,7 @@ static int mt8168_afe_int_adda_prepare(struct snd_pcm_substream *substream,
 	struct mt8168_afe_private *afe_priv = afe->platform_priv;
 	struct mt8168_be_dai_data *be =
 		&afe_priv->be_data[dai->id - MT8168_AFE_BACKEND_BASE];
+	struct mt8168_control_data *ctrl_data = &afe_priv->ctrl_data;
 	const unsigned int rate = substream->runtime->rate;
 	const unsigned int stream = substream->stream;
 	const int bit_width = snd_pcm_format_width(substream->runtime->format);
@@ -2495,6 +2498,7 @@ static int mt8168_afe_int_adda_prepare(struct snd_pcm_substream *substream,
 		if (ret)
 			return ret;
 
+		ctrl_data->dl_p_state = true;
 		mt8168_afe_set_adda_out_enable(afe, true);
 		mt8168_afe_set_i2s_out_enable(afe, true);
 	} else {
@@ -4633,6 +4637,8 @@ static const struct snd_kcontrol_new mt8168_afe_o18_mix[] = {
 
 static const struct snd_kcontrol_new mt8168_afe_o19_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I04 Switch", AFE_CONN19, 4, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I05 Switch", AFE_CONN19, 5, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I07 Switch", AFE_CONN19, 7, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I16 Switch", AFE_CONN19, 16, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I23 Switch", AFE_CONN19, 23, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I24 Switch", AFE_CONN19, 24, 1, 0),
@@ -4641,6 +4647,8 @@ static const struct snd_kcontrol_new mt8168_afe_o19_mix[] = {
 };
 
 static const struct snd_kcontrol_new mt8168_afe_o20_mix[] = {
+	SOC_DAPM_SINGLE_AUTODISABLE("I06 Switch", AFE_CONN20, 6, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I08 Switch", AFE_CONN20, 8, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I17 Switch", AFE_CONN20, 17, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I24 Switch", AFE_CONN20, 24, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I26 Switch", AFE_CONN20, 26, 1, 0),
@@ -5408,6 +5416,11 @@ static const struct snd_soc_dapm_route mt8168_afe_pcm_routes[] = {
 	{"O06", "I06 Switch", "I06L"},
 	{"O05", "I07 Switch", "I07L"},
 	{"O06", "I08 Switch", "I08L"},
+
+	{"O19", "I05 Switch", "I05L"},
+	{"O20", "I06 Switch", "I06L"},
+	{"O19", "I07 Switch", "I07L"},
+	{"O20", "I08 Switch", "I08L"},
 
 	{"O05", "I03 Switch", "I03"},
 	{"O06", "I04 Switch", "I04"},

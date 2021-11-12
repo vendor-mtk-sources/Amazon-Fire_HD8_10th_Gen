@@ -1975,6 +1975,13 @@ struct BSS_DESC *scanAddToBssDesc(IN struct ADAPTER *prAdapter,
 			uint8_t ucSpatial = 0;
 			uint8_t i = 0;
 			/* end Support AP Selection */
+			if (IE_SIZE(pucIE) != (sizeof(struct IE_HT_CAP))) {
+				DBGLOG(SCN, WARN,
+					"HT_CAP wrong length(%zu)->(%d)\n",
+					(sizeof(struct IE_HT_CAP) - 2),
+					IE_LEN(prHtCap));
+				break;
+			}
 
 			prBssDesc->fgIsHTPresent = TRUE;
 
@@ -2025,6 +2032,15 @@ struct BSS_DESC *scanAddToBssDesc(IN struct ADAPTER *prAdapter,
 		{
 			struct IE_BSS_LOAD *prBssLoad =
 				(struct IE_BSS_LOAD *)pucIE;
+
+			if (IE_SIZE(prBssLoad) !=
+				(sizeof(struct IE_BSS_LOAD))) {
+				DBGLOG(SCN, WARN,
+					"BSS LOAD IE_LEN err(%d)->(%d)!\n",
+					(sizeof(struct IE_BSS_LOAD) - 2),
+					IE_LEN(prBssLoad));
+				break;
+			}
 
 			prBssDesc->u2StaCnt = prBssLoad->u2StaCnt;
 			prBssDesc->ucChnlUtilization =
@@ -2092,11 +2108,13 @@ struct BSS_DESC *scanAddToBssDesc(IN struct ADAPTER *prAdapter,
 			break;
 		}
 		case ELEM_ID_RRM_ENABLED_CAP:
-			/* RRM Capability IE is always in length 5 bytes */
-			kalMemZero(prBssDesc->aucRrmCap,
-				   sizeof(prBssDesc->aucRrmCap));
-			kalMemCopy(prBssDesc->aucRrmCap, pucIE + 2,
-				   sizeof(prBssDesc->aucRrmCap));
+			if (IE_LEN(pucIE) == 5) {
+				/* RRM Capability IE is always in length 5 bytes */
+				kalMemZero(prBssDesc->aucRrmCap,
+					   sizeof(prBssDesc->aucRrmCap));
+				kalMemCopy(prBssDesc->aucRrmCap, pucIE + 2,
+					   sizeof(prBssDesc->aucRrmCap));
+			}
 			break;
 			/* no default */
 		}
@@ -2213,7 +2231,8 @@ struct BSS_DESC *scanAddToBssDesc(IN struct ADAPTER *prAdapter,
 		prBssDesc->eSco = CHNL_EXT_SCN;
 	}
 #if CFG_SUPPORT_802_11K
-	if (prCountryIE) {
+	if (prCountryIE && prCountryIE->ucLength ==
+			(sizeof(struct IE_COUNTRY) - ELEM_HDR_LEN)) {
 		uint8_t ucRemainLen = prCountryIE->ucLength - 3;
 		struct COUNTRY_INFO_SUBBAND_TRIPLET *prSubBand =
 			&prCountryIE->arCountryStr[0];
@@ -4204,6 +4223,15 @@ void scanParseVHTCapIE(IN uint8_t *pucIE, IN struct BSS_DESC *prBssDesc)
 	uint8_t j = 0;
 
 	prVhtCap = (struct IE_VHT_CAP *) pucIE;
+	/* Error handling */
+	if (IE_LEN(prVhtCap) != (sizeof(struct IE_VHT_CAP) - ELEM_HDR_LEN)) {
+		DBGLOG(SCN, WARN,
+			"VhtCap wrong length!(%d)->(%d)\n",
+			(sizeof(struct IE_VHT_CAP) - 2),
+			IE_LEN(prVhtCap));
+		return;
+	}
+
 	u2TxMcsSet = prVhtCap->rVhtSupportedMcsSet.u2TxMcsMap;
 	prBssDesc->fgIsVHTPresent = TRUE;
 #if CFG_SUPPORT_BFEE

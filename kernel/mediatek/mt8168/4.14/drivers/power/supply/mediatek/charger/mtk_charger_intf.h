@@ -384,6 +384,26 @@ struct charger_manager {
 	int top_off_mode_cv;
 	unsigned long custom_plugin_time;
 	unsigned int top_off_mode_enable; /* 0=ratail unit, 1=demo unit */
+
+	int vbat_exit_top_off_mode;
+
+	bool enable_top_off_mode_debounce;
+	/* The disconnection time to keep top-off mode. */
+	uint64_t top_off_mode_keep_time;
+	/* Enable the feature detect bad charger */
+	bool enable_bat_eoc_protect;
+	bool bat_eoc_protect;
+	int vbat_eoc;
+
+	struct timespec disconnect_time;
+	uint64_t disconnect_duration;
+	uint32_t bat_eoc_protect_reset_time;
+	uint32_t sw_safety_timer_reset_time;
+
+	uint64_t backup_top_off_mode_keep_time;
+	uint32_t backup_bat_eoc_protect_reset_time;
+	int backup_max_charging_time;
+
 	/* ATM */
 	bool atm_enabled;
 

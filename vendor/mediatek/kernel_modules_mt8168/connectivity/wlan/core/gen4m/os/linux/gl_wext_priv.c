@@ -300,6 +300,10 @@
 #endif
 
 #define CMD_WIFI_ON_TIME_STATISTICS "wifi_on_time_statistics"
+#if CFG_SUPPORT_ANTSWAP_MONITOR
+#define CMD_ANT_SWITCH_INTERVAL  "antenna_switch_scenario"
+#define CMD_GET_ANT_SWITCH_METRICS  "get_fw_ant_switch_metrics"
+#endif
 
 static uint8_t g_ucMiracastMode = MIRACAST_MODE_OFF;
 
@@ -14090,6 +14094,161 @@ static int priv_driver_wifi_on_time_statistics(IN struct net_device *prNetDev, I
 	return 0;
 }
 
+/*
+Operation: AntSwitch
+
+Type: counter
+
+Key, denotes the combinations of charging, device mobility and screen state, enumeration of them are:
+
+0: on charging
+1: on battery + device still + screen off
+2: on battery + device still + screen on
+3: on battery + device moving + screen off
+4: on battery + device moving + screen on
+Metadata, denotes the antenna switch result
+
+0: not switched, main antenna is being used
+1: not switched, aux antenna is being used
+2: switched, main antenna is being used
+3: switched, aux antenna is being used
+Metadata1, RSSI difference of the two antennas
+
+0: <= 5db
+1: <= 10db
+2: <= 15db
+3: > 15db
+the key :
+KEY_1:0 0 0 0 1 0 0 0 18 0 0 0 20 0 0 0
+For array[8]=18 means metadata=2, metadat1=0, 18 is the count value.
+KEY_3:0 5 0 0 1 0 0 0 100 0 0 0 500 0 0 0
+struct SWAP_DATA_INFO sSwapDataInfo [16] = {
+	{0,0,0},{1,0,1},{2,0,2},{3,0,3},
+	{4,1,0},{5,1,1},{6,1,2},{7,1,3},
+	{8,2,0},{9,2,1},{10,2,2},{11,2,3},
+	{12,3,0},{13,3,1},{14,3,2},{15,3,3}
+};
+*/
+#if CFG_SUPPORT_ANTSWAP_MONITOR
+static int priv_driver_set_ant_swap_interval(IN struct net_device *prNetDev, IN char *pcCommand,
+	IN int i4TotalLen)
+{
+	struct GLUE_INFO *prGlueInfo = NULL;
+	uint32_t rStatus = WLAN_STATUS_SUCCESS;
+	uint32_t u4BufLen = 0;
+	int8_t *apcArgv[WLAN_CFG_ARGV_MAX] = { 0 };
+	int32_t i4Argc = 0;
+	int32_t u4Ret = 0;
+	uint32_t u4Interval = 0;
+	uint8_t ucKey;
+	struct CMD_FW_SET_ANTENNA_SWITCH_SCENARIO rCmdAntennaSwitch;
+
+	ASSERT(prNetDev);
+	if (GLUE_CHK_PR2(prNetDev, pcCommand) == FALSE)
+		return -1;
+	prGlueInfo = *((struct GLUE_INFO **) netdev_priv(prNetDev));
+
+	DBGLOG(REQ, LOUD, "command is %s\n", pcCommand);
+	wlanCfgParseArgument(pcCommand, &i4Argc, apcArgv);
+	DBGLOG(REQ, LOUD, "argc is %i\n", i4Argc);
+
+	if (i4Argc < 4) {
+		DBGLOG(REQ, ERROR, "Argc(%d) ERR: Sw set_ant_swap_internal Max Size\n", i4Argc);
+		return -1;
+	}
+	/*iwpriv wlan0 driver antenna_switch_scenario 4 interval 3000*/
+	u4Ret = kalkStrtou8(apcArgv[1], 0, &ucKey);
+	if (u4Ret) {
+		DBGLOG(REQ, ERROR, "parse antenna switch key fail u4Ret=%d\n", u4Ret);
+		return -1;
+	}
+
+	if (strnicmp(apcArgv[2], "interval", strlen("interval")) != 0) {
+		DBGLOG(REQ, ERROR, "parse antenna switch key fail u4Ret=%d\n", u4Ret);
+		return -1;
+	}
+
+	u4Ret = kalkStrtou32(apcArgv[3], 0, &u4Interval);
+	if (u4Ret) {
+		DBGLOG(REQ, ERROR, "parse u4Interval error\n");
+		return -1;
+	}
+
+	kalMemZero(&rCmdAntennaSwitch, sizeof(struct CMD_FW_SET_ANTENNA_SWITCH_SCENARIO));
+	rCmdAntennaSwitch.u4Time = u4Interval;
+	rCmdAntennaSwitch.ucAction = ucKey;
+	rStatus = kalIoctl(prGlueInfo, wlanoidSetAntennaSwitchScenario,
+					   &rCmdAntennaSwitch, sizeof(struct CMD_FW_SET_ANTENNA_SWITCH_SCENARIO),
+					   FALSE, FALSE, TRUE, &u4BufLen);
+	if (rStatus != WLAN_STATUS_SUCCESS) {
+		DBGLOG(REQ, WARN, "antenna switch timer set fail:%x\n", rStatus);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int priv_driver_get_antswap_metrics(IN struct net_device *prNetDev,
+				 IN char *pcCommand, IN int i4TotalLen)
+{
+	struct GLUE_INFO *prGlueInfo = NULL;
+	uint32_t u4BufLen = 0;
+	int32_t i4BytesWritten = 0;
+	int32_t i4Argc = 0;
+	int8_t *apcArgv[WLAN_CFG_ARGV_MAX] = { 0 };
+	struct PARAM_ANTSWITCH_INFO rAntSwitchInfo;
+	uint32_t u4Offset = 0;
+	uint8_t i;
+	uint8_t j;
+	int ret = -1;
+
+	ASSERT(prNetDev);
+
+	prGlueInfo = *((struct GLUE_INFO **) netdev_priv(prNetDev));
+
+	if (GLUE_CHK_PR2(prNetDev, pcCommand) == FALSE)
+		return -1;
+
+	DBGLOG(REQ, LOUD, "command is %s\n", pcCommand);
+	wlanCfgParseArgument(pcCommand, &i4Argc, apcArgv);
+	DBGLOG(REQ, LOUD, "argc is %i\n", i4Argc);
+
+	kalMemZero(&rAntSwitchInfo, sizeof(struct PARAM_ANTSWITCH_INFO));
+	if (kalIoctl(prGlueInfo, wlanoidQueryAntSwitchData, &rAntSwitchInfo,
+		sizeof(struct PARAM_ANTSWITCH_INFO),
+		FALSE, TRUE, TRUE, &u4BufLen) == WLAN_STATUS_SUCCESS) {
+		u4Offset += snprintf(pcCommand + u4Offset, i4TotalLen - u4Offset, "\n");
+		for (i = 0; i < 5; i++) {
+			for (j = 0; j < 16; j++) {
+				if (rAntSwitchInfo.rAntSwitchInfoData[i].u4Data[j] != 0) {
+					ret = 1;
+					break;
+				}
+			}
+			if (ret != 1)
+				continue;
+			u4Offset += snprintf(pcCommand + u4Offset, i4TotalLen - u4Offset,
+					"KEY_%d:", i);
+			for (j = 0; j < 16; j++) {
+				u4Offset += snprintf(pcCommand + u4Offset, i4TotalLen - u4Offset,
+						"%d ", rAntSwitchInfo.rAntSwitchInfoData[i].u4Data[j]);
+			}
+			u4Offset += snprintf(pcCommand + u4Offset, i4TotalLen - u4Offset, "\n");
+			ret = 0;
+		}
+		i4BytesWritten = (int32_t)u4Offset;
+
+		return i4BytesWritten;
+	}
+	else {
+		u4Offset += snprintf(pcCommand + u4Offset, i4TotalLen - u4Offset, "get_fw_metrics fail\n");
+		DBGLOG(REQ, WARN, "antenna switch get metrics fail\n");
+		i4BytesWritten = (int32_t)u4Offset;
+		return i4BytesWritten;
+	}
+}
+
+#endif
+
 typedef int(*PRIV_CMD_FUNCTION) (
 		IN struct net_device *prNetDev,
 		IN char *pcCommand,
@@ -14231,6 +14390,10 @@ struct PRIV_CMD_HANDLER priv_cmd_handlers[] = {
 	{CMD_FW_ACTIVE_STATISTICS, priv_driver_fw_active_time_statistics},
 #endif
 	{CMD_WIFI_ON_TIME_STATISTICS, priv_driver_wifi_on_time_statistics},
+#if CFG_SUPPORT_ANTSWAP_MONITOR
+	{CMD_ANT_SWITCH_INTERVAL, priv_driver_set_ant_swap_interval},
+	{CMD_GET_ANT_SWITCH_METRICS, priv_driver_get_antswap_metrics},
+#endif
 };
 
 int32_t priv_driver_cmds(IN struct net_device *prNetDev, IN int8_t *pcCommand,

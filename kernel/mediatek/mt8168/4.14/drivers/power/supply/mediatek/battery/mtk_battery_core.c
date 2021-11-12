@@ -88,6 +88,7 @@
 #ifdef CONFIG_IDME
 #include <linux/idme.h>
 #endif
+#include <mt-plat/battery_metrics.h>
 
 #define DISABLE_LOW_BATTERY_TEMP (-100)
 
@@ -1463,6 +1464,11 @@ void fg_custom_init_from_dts(struct platform_device *dev)
 
 	gm.enable_zero_percent_shutdown =
 		of_property_read_bool(np, "enable_zero_percent_shutdown");
+
+	if (!of_property_read_u32(np, "ui_fast_tracking_en", &val))
+		fg_cust_data.ui_fast_tracking_en = (int)val;
+	bm_err("%s: %s fast-tracking\n", __func__,
+		(fg_cust_data.ui_fast_tracking_en == 1)?"Enable":"Disable");
 }
 #endif
 
@@ -2620,6 +2626,10 @@ void fg_daemon_send_data(
 				prcv->idx);
 
 			bm_info("FG_LOG_DATA\n");
+
+			bat_metrics_aging(fg_log_data.gm30_aging_factor,
+					  fg_log_data.gm30_bat_cycle,
+					  fg_log_data.gm30_qmax_t_0ma_tb1);
 		}
 		break;
 

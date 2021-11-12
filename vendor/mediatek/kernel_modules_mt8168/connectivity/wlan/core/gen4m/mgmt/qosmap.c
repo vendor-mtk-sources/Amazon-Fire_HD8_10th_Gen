@@ -183,6 +183,7 @@ int qosHandleQosMapConfigure(IN struct ADAPTER *prAdapter,
 {
 	struct _ACTION_QOS_MAP_CONFIGURE_FRAME *prRxFrame = NULL;
 	struct STA_RECORD *prStaRec;
+	int16_t i2IELength = 0;
 
 	prRxFrame =
 		(struct _ACTION_QOS_MAP_CONFIGURE_FRAME *) prSwRfb->pvHeader;
@@ -196,6 +197,16 @@ int qosHandleQosMapConfigure(IN struct ADAPTER *prAdapter,
 	log_dbg(INIT, INFO,
 	"IEEE 802.11: Received Qos Map Configure Frame from " MACSTR "\n",
 		MAC2STR(prStaRec->aucMacAddr));
+
+	i2IELength = prSwRfb->u2PacketLen -
+		(uint16_t)
+		(OFFSET_OF(struct _ACTION_QOS_MAP_CONFIGURE_FRAME, qosMapSet[0]));
+	if (i2IELength < ELEM_HDR_LEN ||
+		i2IELength < IE_SIZE(prRxFrame->qosMapSet)) {
+		DBGLOG(INIT, WARN, "QosMapSet IE: insufficient length %d\n",
+			i2IELength);
+		return -1;
+	}
 
 	if (prStaRec->qosMapSet)
 		QosMapSetFree(prStaRec);

@@ -61,8 +61,10 @@ static void charger_device_release(struct device *dev)
 
 int charger_dev_enable(struct charger_device *chg_dev, bool en)
 {
-	if (chg_dev != NULL && chg_dev->ops != NULL && chg_dev->ops->enable)
+	if (chg_dev != NULL && chg_dev->ops != NULL && chg_dev->ops->enable) {
+		dev_info(&chg_dev->dev, "%s: en=%d\n", __func__, en);
 		return chg_dev->ops->enable(chg_dev, en);
+	}
 
 	return -ENOTSUPP;
 }

@@ -2599,6 +2599,21 @@ struct WIFI_ON_TIME_STATISTICS {
 	OS_SYSTIME lastUpdateTime;
 };
 
+#if CFG_SUPPORT_ANTSWAP_MONITOR
+struct CMD_FW_SET_ANTENNA_SWITCH_SCENARIO {
+	uint8_t ucAction;
+	uint32_t u4Time; /*unit ms*/
+};
+struct ANT_SWAP_DATA {
+	uint8_t ucKey;
+	uint32_t u4Data[16];
+};
+struct PARAM_ANTSWITCH_INFO {
+	struct ANT_SWAP_DATA rAntSwitchInfoData[5];
+	uint8_t ucIdex;
+};
+
+#endif
 /*******************************************************************************
  *                            P U B L I C   D A T A
  *******************************************************************************
@@ -4188,4 +4203,14 @@ wlanoidSetFwActiveTimeStatistics(IN struct ADAPTER * prAdapter,
 uint32_t
 wlanoidQueryBandWidth(IN struct ADAPTER *prAdapter,
 			  IN void *pvQueryBuffer, IN uint32_t u4QueryBufferLen, OUT uint32_t *pu4QueryInfoLen);
+uint32_t
+wlanoidSetAntennaSwitchScenario(IN struct ADAPTER *prAdapter,
+			   IN void *pvSetBuffer, IN uint32_t u4SetBufferLen,
+			   OUT uint32_t *pu4SetInfoLen);
+uint32_t
+wlanoidQueryAntSwitchData(IN struct ADAPTER *prAdapter,
+		 IN void *pvQueryBuffer,
+		 IN uint32_t u4QueryBufferLen,
+		 OUT uint32_t *pu4QueryInfoLen);
+
 #endif /* _WLAN_OID_H */

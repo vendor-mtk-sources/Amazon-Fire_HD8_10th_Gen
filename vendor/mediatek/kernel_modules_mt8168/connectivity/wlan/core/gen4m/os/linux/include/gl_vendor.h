@@ -90,6 +90,8 @@
 #if CFG_SUPPORT_DATA_STALL
 #define OUI_MTK 0x000CE7
 #endif
+#define OUI_AMAZON 0x007147
+
 
 #define NL80211_VENDOR_SUBCMD_GET_PREFER_FREQ_LIST 103
 #define QCA_NL80211_VENDOR_SUBCMD_SETBAND 105
@@ -167,6 +169,11 @@ enum WIFI_OFFLOAD_SUB_COMMAND {
 	WIFI_OFFLOAD_STOP_MKEEP_ALIVE,
 };
 
+enum amzn_nl80211_vendor_subcmds {
+	AMZN_NL80211_VENDOR_SUBCMD_UNSPEC = 0,
+	AMZN_NL80211_VENDOR_SUBCMD_ROAMING_INFO = 1,
+};
+
 enum WIFI_VENDOR_EVENT {
 	GSCAN_EVENT_SIGNIFICANT_CHANGE_RESULTS,
 	GSCAN_EVENT_HOTLIST_RESULTS_FOUND,
@@ -176,7 +183,8 @@ enum WIFI_VENDOR_EVENT {
 	GSCAN_EVENT_COMPLETE_SCAN,
 	GSCAN_EVENT_HOTLIST_RESULTS_LOST,
 	WIFI_EVENT_RSSI_MONITOR,
-	WIFI_EVENT_DRIVER_ERROR
+	WIFI_EVENT_DRIVER_ERROR,
+	WIFI_EVENT_ROANING_METRICS
 };
 
 enum WIFI_ATTRIBUTE {
@@ -276,6 +284,32 @@ enum WIFI_VENDOR_ATTR_PREFERRED_FREQ_LIST {
 enum WIFI_DATA_STALL_ATTRIBUTE {
 	WIFI_ATTRIBUTE_ERROR_REASON = 0,
 };
+#endif
+
+#if CFG_SUPPORT_ROAMING
+typedef enum _ENUM_ROAMING_STATUS_T {
+	 ROAMING_SUCCESS = 0,
+	 ROAMING_CURRENT_IS_BEST,
+	 ROAMING_AUTH_FAIL,
+	 ROAMING_ASSOC_FAIL,
+	 ROAMING_SINGLE_AP,
+	 ROAMING_NUM
+ } ENUM_ROAMING_STATUS_T, *P_ENUM_ROAMIGN_STATUS_T;
+
+typedef enum _ENUM_ROAMING_TYPE_T {
+	 ROAMING_LEGACY = 0,
+	 ROAMING_11K,
+	 ROAMING_11V,
+	 ROAMING_TYPE
+ } ENUM_ROAMING_TYPE_T, *P_ENUM_ROAMIGN_TYPE_T;
+
+typedef struct {
+	OS_SYSTIME u4RoamingTime;
+	uint8_t ucHasRoamingScan;
+	uint8_t eRoamingStatus;
+	uint8_t roaming_type;
+	int8_t  oldApRssi;
+} PARAM_ROAMING_INFO_EVENT;
 #endif
 
 /*******************************************************************************
@@ -715,4 +749,7 @@ int mtk_cfg80211_vendor_driver_memory_dump(struct wiphy *wiphy,
 					   const void *data,
 					   int data_len);
 
+#if CFG_SUPPORT_ROAMING
+int mtk_cfg80211_vendor_event_roaming_info(IN struct GLUE_INFO *prGlueInfo);
+#endif
 #endif /* _GL_VENDOR_H */

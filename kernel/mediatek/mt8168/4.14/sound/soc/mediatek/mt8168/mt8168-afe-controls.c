@@ -201,6 +201,19 @@ static int mt8168_afe_cm_bypass_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int mt8168_afe_dl_playback_state_get(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_platform *plat = snd_soc_kcontrol_platform(kcontrol);
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(plat);
+	struct mt8168_afe_private *afe_priv = afe->platform_priv;
+	struct mt8168_control_data *data = &afe_priv->ctrl_data;
+
+	ucontrol->value.integer.value[0] = data->dl_p_state;
+
+	return 0;
+}
+
 static int mt8168_afe_singen_enable_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
@@ -685,6 +698,10 @@ static const struct snd_kcontrol_new mt8168_afe_controls[] = {
 			mt8168_afe_volkey_switch_get,
 			mt8168_afe_volkey_switch_set),
 #endif
+	SOC_SINGLE_BOOL_EXT("DL_Playback_State",
+			0,
+			mt8168_afe_dl_playback_state_get,
+			NULL),
 };
 
 int mt8168_afe_add_controls(struct snd_soc_platform *platform)

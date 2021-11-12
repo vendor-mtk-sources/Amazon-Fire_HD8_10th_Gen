@@ -849,6 +849,11 @@ struct EMU_MAC_RATE_INFO {
 	uint32_t u4PhyRate[4][2];
 };
 
+struct ACTION_FRAME_SIZE_MAP {
+	uint16_t u2Index; /* High byte for Action, low byte for Category */
+	size_t len;
+};
+
 /*******************************************************************************
  *                           P R I V A T E   D A T A
  *******************************************************************************

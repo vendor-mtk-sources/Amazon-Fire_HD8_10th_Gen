@@ -160,6 +160,11 @@ struct ROAMING_INFO {
 	struct TIMER rWaitCandidateTimer;
 	enum ENUM_ROAMING_REASON eReason;
 	uint8_t ucPER;
+	OS_SYSTIME u4RoamingStartTime;
+	ENUM_ROAMING_STATUS_T eRoamingStatus;
+	uint8_t ucHasRoamingScan;
+	ENUM_ROAMING_TYPE_T eRoaming_type;
+	int8_t oldApRssi;
 };
 
 enum ROAM_TYPE {

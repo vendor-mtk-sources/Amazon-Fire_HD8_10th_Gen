@@ -1400,6 +1400,7 @@ kalIndicateStatusAndComplete(IN struct GLUE_INFO
 
 			/* CFG80211 Indication */
 			if (eStatus == WLAN_STATUS_ROAM_OUT_FIND_BEST) {
+				kalIndicateRoamingMetrics(prGlueInfo);
 #if KERNEL_VERSION(4, 12, 0) <= CFG80211_VERSION_CODE
 				rRoamInfo.bss = bss;
 				rRoamInfo.req_ie = prGlueInfo->aucReqIe;
@@ -8200,4 +8201,17 @@ u_int8_t kalTRxStatsPaused(void) {
 	return !wlan_fb_power_down;
 }
 #endif /* fos_change end */
+
+/*add roaming metrics for fos7*/
+#if CFG_SUPPORT_ROAMING
+void kalIndicateRoamingMetrics(IN struct GLUE_INFO *prGlueInfo)
+{
+	int u2RoamingMetricStatus = 0;
+
+	u2RoamingMetricStatus = mtk_cfg80211_vendor_event_roaming_info(prGlueInfo);
+	if (u2RoamingMetricStatus != 0)
+		DBGLOG(INIT, INFO, "send roaming success metrics fail status =%d",
+			u2RoamingMetricStatus);
+}
+#endif
 

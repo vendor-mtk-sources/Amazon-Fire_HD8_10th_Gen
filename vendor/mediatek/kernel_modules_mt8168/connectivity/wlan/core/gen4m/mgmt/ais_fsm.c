@@ -1136,12 +1136,22 @@ void aisFsmSteps(IN struct ADAPTER *prAdapter, enum ENUM_AIS_STATE eNextState)
 	uint16_t u2ScanIELen;
 	u_int8_t fgIsTransition = (u_int8_t) FALSE;
 	uint8_t ucRfBw;
+	/*add  for fos roaming metrics*/
+	struct ROAMING_INFO *prRoamingFsmInfo;
+	struct SCAN_INFO *prScanInfo;
+	struct LINK *prRoamBSSDescList;
+	struct ROAM_BSS_DESC *prRoamBssDesc;
+	bool fgIsRoamingSSID = FALSE;
+	struct AIS_SPECIFIC_BSS_INFO *prAisSpecificBssInfo = NULL;
+	struct LINK *prEssLink = NULL;
 
 	DEBUGFUNC("aisFsmSteps()");
 
 	prAisFsmInfo = &(prAdapter->rWifiVar.rAisFsmInfo);
 	prAisBssInfo = prAdapter->prAisBssInfo;
 	prConnSettings = &(prAdapter->rWifiVar.rConnSettings);
+	prRoamingFsmInfo = (struct ROAMING_INFO *) &
+			   (prAdapter->rWifiVar.rRoamingInfo);
 
 	do {
 
@@ -1321,6 +1331,11 @@ void aisFsmSteps(IN struct ADAPTER *prAdapter, enum ENUM_AIS_STATE eNextState)
 					DBGLOG(AIS, STATE,
 					       "Roaming retry :%d fail!\n",
 					       prAisFsmInfo->ucConnTrialCount);
+					/*add for fos roaming metrics*/
+					if (prBssDesc->u2JoinStatus == STATUS_CODE_AUTH_TIMEOUT)
+						prRoamingFsmInfo->eRoamingStatus = ROAMING_AUTH_FAIL;
+					else
+						prRoamingFsmInfo->eRoamingStatus = ROAMING_ASSOC_FAIL;
 					roamingFsmRunEventFail(prAdapter,
 					ROAMING_FAIL_REASON_CONNLIMIT);
 #endif /* CFG_SUPPORT_ROAMING */
@@ -1569,6 +1584,24 @@ void aisFsmSteps(IN struct ADAPTER *prAdapter, enum ENUM_AIS_STATE eNextState)
 					 */
 					/* TODO(Kevin): Roaming Fail */
 #if CFG_SUPPORT_ROAMING
+					/*add for fos7 for roaming metrics*/
+					prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
+					prRoamBSSDescList = &prScanInfo->rRoamBSSDescList;
+					prAisSpecificBssInfo = &prAdapter->rWifiVar.rAisSpecificBssInfo;
+					prEssLink = &prAisSpecificBssInfo->rCurEssLink;
+					/* Count same BSS Desc from current SCAN result list. */
+					LINK_FOR_EACH_ENTRY(prRoamBssDesc, prRoamBSSDescList, rLinkEntry, struct ROAM_BSS_DESC) {
+						if (EQUAL_SSID(prRoamBssDesc->aucSSID,
+						       prRoamBssDesc->ucSSIDLen,
+						       prAisBssInfo->aucSSID, prAisBssInfo->ucSSIDLen)) {
+						       fgIsRoamingSSID = TRUE;
+						       break;
+						}
+					}
+					if (!fgIsRoamingSSID && (prBssDesc || !prEssLink->u4NumElem))
+						prRoamingFsmInfo->eRoamingStatus = ROAMING_SINGLE_AP;
+					else
+						prRoamingFsmInfo->eRoamingStatus = ROAMING_CURRENT_IS_BEST;
 					roamingFsmRunEventFail(prAdapter,
 					ROAMING_FAIL_REASON_NOCANDIDATE);
 #endif /* CFG_SUPPORT_ROAMING */
@@ -3005,6 +3038,7 @@ enum ENUM_AIS_STATE aisFsmJoinCompleteAction(IN struct ADAPTER *prAdapter,
 				/* 2. Deactivate previous BSS */
 				aisFsmRoamingDisconnectPrevAP(prAdapter,
 							      prStaRec);
+				prRoamingFsmInfo->eRoamingStatus = ROAMING_SUCCESS;
 
 				/* 3. Update bss based on roaming staRec */
 				aisUpdateBssInfoForRoamingAP(prAdapter,
@@ -3877,7 +3911,8 @@ void aisPostponedEventOfDisconnTimeout(IN struct ADAPTER *prAdapter,
 	if (prAisFsmInfo->eCurrentState == AIS_STATE_LOOKING_FOR)
 		prAisFsmInfo->eCurrentState = AIS_STATE_IDLE;
 	prConnSettings->fgIsDisconnectedByNonRequest = TRUE;
-	prAisBssInfo->u2DeauthReason = 100 * REASON_CODE_BEACON_TIMEOUT + prAisBssInfo->u2DeauthReason;
+	prAisBssInfo->u2DeauthReason = fgIsBeaconTimeout ?
+		(100 * REASON_CODE_BEACON_TIMEOUT + prAisBssInfo->u2DeauthReason) : prAisBssInfo->u2DeauthReason;
 	/* 4 <3> Indicate Disconnected Event to Host immediately. */
 	aisIndicationOfMediaStateToHost(prAdapter,
 					PARAM_MEDIA_STATE_DISCONNECTED, FALSE);
@@ -5298,11 +5333,14 @@ void aisFsmRunEventRoamingDiscovery(IN struct ADAPTER *prAdapter,
 	struct AIS_FSM_INFO *prAisFsmInfo;
 	struct CONNECTION_SETTINGS *prConnSettings;
 	enum ENUM_AIS_REQUEST_TYPE eAisRequest = AIS_REQUEST_NUM;
+	struct ROAMING_INFO *prRoamingFsmInfo;
 
 	DBGLOG(AIS, LOUD, "aisFsmRunEventRoamingDiscovery()\n");
 
 	prAisFsmInfo = &(prAdapter->rWifiVar.rAisFsmInfo);
 	prConnSettings = &(prAdapter->rWifiVar.rConnSettings);
+	prRoamingFsmInfo = (struct ROAMING_INFO *) &
+			   (prAdapter->rWifiVar.rRoamingInfo);
 
 	/* search candidates by best rssi */
 	prConnSettings->eConnectionPolicy = CONNECT_BY_SSID_BEST_RSSI;
@@ -5332,6 +5370,7 @@ void aisFsmRunEventRoamingDiscovery(IN struct ADAPTER *prAdapter,
 	if (!u4ReqScan) {
 		roamingFsmRunEventRoam(prAdapter);
 		eAisRequest = AIS_REQUEST_ROAMING_CONNECT;
+		prRoamingFsmInfo->ucHasRoamingScan = 0;
 	} else {
 		if (prAisFsmInfo->eCurrentState == AIS_STATE_ONLINE_SCAN
 		    || prAisFsmInfo->eCurrentState == AIS_STATE_LOOKING_FOR) {
@@ -5339,6 +5378,7 @@ void aisFsmRunEventRoamingDiscovery(IN struct ADAPTER *prAdapter,
 		} else {
 			eAisRequest = AIS_REQUEST_ROAMING_SEARCH;
 		}
+		prRoamingFsmInfo->ucHasRoamingScan = 1;
 	}
 
 	if (prAisFsmInfo->eCurrentState == AIS_STATE_NORMAL_TR
@@ -6480,6 +6520,7 @@ void aisFsmRunEventBssTransition(IN struct ADAPTER *prAdapter,
 	uint8_t ucStatus = BSS_TRANSITION_MGT_STATUS_UNSPECIFIED;
 	uint8_t ucRcvToken = 0;
 	static uint8_t aucChnlList[MAXIMUM_OPERATION_CHANNEL_LIST];
+	struct ROAMING_INFO *prRoamingFsmInfo;
 
 	if (!prMsg) {
 		DBGLOG(AIS, WARN, "Msg Header is NULL\n");
@@ -6488,6 +6529,13 @@ void aisFsmRunEventBssTransition(IN struct ADAPTER *prAdapter,
 	eTransType = prMsg->eTransitionType;
 	fgNeedBtmResponse = prMsg->fgNeedResponse;
 	ucRcvToken = prMsg->ucToken;
+
+	/*add for fos roaming mertrics*/
+	prRoamingFsmInfo = (struct ROAMING_INFO *) &
+			   (prAdapter->rWifiVar.rRoamingInfo);
+	prRoamingFsmInfo->eRoaming_type = ROAMING_11V;
+	prRoamingFsmInfo->u4RoamingStartTime = (OS_SYSTIME) kalGetTimeTick();
+	prRoamingFsmInfo->oldApRssi = RCPI_TO_dBm(prBssDesc->ucRCPI);
 
 	DBGLOG(AIS, INFO, "Transition Type: %d\n", eTransType);
 	aisCollectNeighborAP(prAdapter, prMsg->pucCandList,

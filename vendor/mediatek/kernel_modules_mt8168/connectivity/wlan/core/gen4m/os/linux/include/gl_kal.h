@@ -1683,4 +1683,8 @@ u_int8_t glIsWakeupLogEnabled(void);
 u_int8_t kalTRxStatsPaused(void);
 #endif
 
+#if CFG_SUPPORT_ROAMING
+void kalIndicateRoamingMetrics(IN struct GLUE_INFO *prGlueInfo);
+#endif
+
 #endif /* _GL_KAL_H */

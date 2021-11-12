@@ -34,7 +34,7 @@
 #ifdef CONFIG_DEBUG_LIST
 		bootargs = "console=tty0 console=ttyS0,921600n1 earlycon=uart8250,mmio32,0x11002000 vmalloc=496M androidboot.hardware=mt8168 firmware_class.path=/vendor/firmware loop.max_part=7";
 #else
-		bootargs = "console=tty0 console=ttyS0,921600n1 vmalloc=496M androidboot.hardware=mt8168 firmware_class.path=/vendor/firmware loop.max_part=7";
+		bootargs = "console=tty0 vmalloc=496M androidboot.hardware=mt8168 firmware_class.path=/vendor/firmware loop.max_part=7";
 #endif
 	};
 	/* ATF logger SW IRQ number 253 = 32 + 221 */

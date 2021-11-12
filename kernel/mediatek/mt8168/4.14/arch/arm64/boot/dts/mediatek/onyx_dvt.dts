@@ -327,8 +327,8 @@ ROOT_NODE {
 	mediatek,dmic-two-wire-mode = <0>;
 	/* 0(SEPARATE_CLK) 1(SHARE_CLK) */
 	mediatek,i2s-clock-modes = <0 1>;
-	mediatek,dl1-use-sram = <0x11221000 0x5000>;
-	mediatek,vul-use-sram = <0x11226000 0x5000>;
+	mediatek,dl1-use-sram = <0x11221000 0x4000>;
+	mediatek,vul2-use-sram = <0x11225000 0x6000>;
 	sound-dai = <&rt551x>;
 	status = "okay";
 };
@@ -1911,6 +1911,7 @@ ROOT_NODE {
 	idme_battery_names = "Sunwoda/ATL", "Desay/LiShen", "Desay/ATL", "Sunwoda/LiShen";
 	idme_battery_id = <0x1311 0x1337 0x1331 0x1317>;
 	DIFFERENCE_FULLOCV_ITH = <(300)>;
+	ui_fast_tracking_en = <0>;
 };
 
 &lk_charger {
@@ -1941,6 +1942,14 @@ ROOT_NODE {
 	/delete-property/ enable_pe_plus;
 	/delete-property/ pd_charger_current;
 	/delete-property/ enable_type_c;
+
+	enable_bat_eoc_protect;
+	enable_sw_safety_timer;
+	enable_top_off_mode_debounce;
+
+	max_charging_time = <72000>;	/* 72000 seconds (20hours) */
+	vbat_exit_top_off_mode = <4000>; /* 4000mV */
+
 	/* common */
 	battery_cv = <4350000>;
 	min_charger_voltage = <4300000>;

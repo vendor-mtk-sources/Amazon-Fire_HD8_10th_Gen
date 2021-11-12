@@ -46,6 +46,7 @@
 #include <mt-plat/mtk_charger.h>
 #include <mt-plat/mtk_boot.h>
 #include "mtk_charger_intf.h"
+#include "mtk_switch_charging.h"
 #include "idtp922x_wireless_power.h"
 
 static void p922x_fast_charge_enable(struct p922x_dev *chip, bool en);
@@ -1721,6 +1722,7 @@ static int p922x_do_algorithm(struct charger_device *chg_dev, void *data)
 	struct p922x_dev *chip = dev_get_drvdata(&chg_dev->dev);
 	struct charger_manager *info = (struct charger_manager *)data;
 	enum charger_type chr_type = mt_get_charger_type();
+	struct switch_charging_alg_data *swchgalg = info->algorithm_data;
 	bool chg_done, stat;
 
 	mutex_lock(&chip->irq_lock);
@@ -1756,6 +1758,15 @@ static int p922x_do_algorithm(struct charger_device *chg_dev, void *data)
 
 out:
 	mutex_unlock(&chip->irq_lock);
+
+	dev_info(chip->dev, "%s: %d, %d, %d, %d\n",
+				__func__, chr_type, info->bat_eoc_protect,
+				info->custom_charging_cv, swchgalg->state);
+	if (((info->bat_eoc_protect == 1) || (info->custom_charging_cv > 0))
+		&& (swchgalg->state == CHR_BATFULL)) {
+		if (info != NULL && info->change_current_setting)
+			info->change_current_setting(info);
+	}
 	return 0;
 }
 

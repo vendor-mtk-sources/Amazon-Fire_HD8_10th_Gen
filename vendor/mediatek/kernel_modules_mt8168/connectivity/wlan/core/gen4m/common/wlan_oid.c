@@ -16561,4 +16561,74 @@ wlanoidQueryBandWidth(IN struct ADAPTER *prAdapter,
 	} while (FALSE);
 	return rResult;
 }
+/*add fos fos7*/
+#if CFG_SUPPORT_ANTSWAP_MONITOR
+uint32_t
+wlanoidSetAntennaSwitchScenario(IN struct ADAPTER *prAdapter,
+			   IN void *pvSetBuffer, IN uint32_t u4SetBufferLen,
+			   OUT uint32_t *pu4SetInfoLen)
+{
+	struct CMD_FW_SET_ANTENNA_SWITCH_SCENARIO *antennaSwtichTimer;
+	struct CMD_FW_SET_ANTENNA_SWITCH_SCENARIO rCmdAntennaSwitch ;
+	uint32_t rWlanStatus = WLAN_STATUS_SUCCESS;
+
+	ASSERT(pvSetBuffer);
+
+	/* 4 1. Sanity test */
+	if ((prAdapter == NULL) || (pu4SetInfoLen == NULL))
+		return WLAN_STATUS_FAILURE;
+
+	if ((u4SetBufferLen) && (pvSetBuffer == NULL))
+		return WLAN_STATUS_FAILURE;
+
+	antennaSwtichTimer = (struct CMD_FW_SET_ANTENNA_SWITCH_SCENARIO *)pvSetBuffer;
+
+	kalMemZero(&rCmdAntennaSwitch, sizeof(struct CMD_FW_SET_ANTENNA_SWITCH_SCENARIO));
+	rCmdAntennaSwitch.u4Time = antennaSwtichTimer->u4Time;
+	rCmdAntennaSwitch.ucAction = antennaSwtichTimer->ucAction;
+	DBGLOG(REQ, LOUD, "antenna switch timer[%u] key [%u]\n", rCmdAntennaSwitch.u4Time, rCmdAntennaSwitch.ucAction);
+	rWlanStatus = wlanSendSetQueryCmd(prAdapter,
+		CMD_ID_SET_ANTENNA_SWITCH_TIMER,
+		FALSE,
+		FALSE,
+		TRUE,
+		NULL,
+		nicOidCmdTimeoutCommon,
+		sizeof(struct CMD_FW_SET_ANTENNA_SWITCH_SCENARIO),
+		(uint8_t *) &rCmdAntennaSwitch, pvSetBuffer, u4SetBufferLen);
+
+	return rWlanStatus;
+}
+
+uint32_t
+wlanoidQueryAntSwitchData(IN struct ADAPTER *prAdapter,
+		 IN void *pvQueryBuffer,
+		 IN uint32_t u4QueryBufferLen,
+		 OUT uint32_t *pu4QueryInfoLen)
+{
+	struct PARAM_ANTSWITCH_INFO *prAntSwitchInfo;
+
+	DEBUGFUNC("wlanoidQueryRssi");
+
+	ASSERT(prAdapter);
+	if (u4QueryBufferLen)
+		ASSERT(pvQueryBuffer);
+	ASSERT(pu4QueryInfoLen);
+
+	*pu4QueryInfoLen = sizeof(struct PARAM_ANTSWITCH_INFO);
+	prAntSwitchInfo = (struct PARAM_ANTSWITCH_INFO *)pvQueryBuffer;
+	DBGLOG(RSN, TRACE, "index = %d\n", prAntSwitchInfo->ucIdex);
+
+	return wlanSendSetQueryCmd(prAdapter,
+				   CMD_ID_GET_ANTENNA_SWITCH_DATA,
+				   FALSE,
+				   TRUE,
+				   TRUE,
+				   nicCmdEventQueryAntSwapMetrics,
+				   nicOidCmdTimeoutCommon,
+				   sizeof(struct PARAM_ANTSWITCH_INFO),
+				   (uint8_t *)prAntSwitchInfo,
+				   pvQueryBuffer, u4QueryBufferLen);
+}
+#endif
 

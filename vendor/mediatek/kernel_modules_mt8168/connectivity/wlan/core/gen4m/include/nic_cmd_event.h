@@ -559,6 +559,10 @@ enum ENUM_CMD_ID {
 #if CFG_SUPPORT_CAL_RESULT_BACKUP_TO_HOST
 	CMD_ID_CAL_BACKUP_IN_HOST_V2 = 0xAE,	/* 0xAE (Set / Query) */
 #endif
+#if CFG_SUPPORT_ANTSWAP_MONITOR
+	CMD_ID_SET_ANTENNA_SWITCH_TIMER = 0xB2,
+	CMD_ID_GET_ANTENNA_SWITCH_DATA = 0xB3,
+#endif
 
 	CMD_ID_WFC_KEEP_ALIVE = 0xA0,	/* 0xa0(Set) */
 	CMD_ID_RSSI_MONITOR = 0xA1,	/* 0xa1(Set) */
@@ -698,6 +702,10 @@ enum ENUM_EVENT_ID {
 	EVENT_ID_CAL_BACKUP_IN_HOST_V2 = 0xAE,
 	/* 0xAF (FW Cal All Done Event) */
 	EVENT_ID_CAL_ALL_DONE = 0xAF,
+#endif
+
+#if CFG_SUPPORT_ANTSWAP_MONITOR
+	EVENT_ID_SWAPMONITOR_INDICATION = 0xB1,
 #endif
 
 	EVENT_ID_WLAN_INFO = 0xCD,
@@ -3693,6 +3701,20 @@ struct EVENT_OPMODE_CHANGE {
 	uint8_t  aucPadding2[63];
 };
 
+#if CFG_SUPPORT_ANTSWAP_MONITOR
+struct SWAP_DATA_FW
+{
+	uint8_t ucKey;
+	uint32_t u4Data[16];
+};
+
+struct EVENT_ANT_SWAP_INDICATE
+{
+	struct  SWAP_DATA_FW rAntSwapInfo[5];
+	uint8_t ucIdex;
+};
+#endif
+
 #if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
 struct EVENT_FW_ACTIVE_TIME_STATISTICS {
 	uint32_t u4TimeDuringScreenOn; /*unit ms*/
@@ -4003,6 +4025,12 @@ void nicCmdEventReportMisc(IN struct ADAPTER *prAdapter,
 			   IN struct CMD_INFO *prCmdInfo,
 			   IN uint8_t *pucEventBuf);
 #endif
+
+#if CFG_SUPPORT_ANTSWAP_MONITOR
+void nicCmdEventQueryAntSwapMetrics(IN struct ADAPTER *prAdapter,
+	IN struct CMD_INFO *prCmdInfo, IN uint8_t *pucEventBuf);
+#endif
+
 #if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
 void nicCmdEventGetFwActiveTimeStatistics(IN struct ADAPTER *prAdapter,
 	IN struct CMD_INFO *prCmdInfo,

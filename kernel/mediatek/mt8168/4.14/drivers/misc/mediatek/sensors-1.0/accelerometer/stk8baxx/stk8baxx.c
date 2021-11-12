@@ -86,7 +86,7 @@ const static int STK8BAXX_SAMPLE_TIME[] = {32000, 16000, 8000}; /* usec */
 static bool sensor_power = true;
 
 static struct stk8baxx_data *stk_data;
-static int stk8baxx_init_flag;
+static int stk8baxx_init_flag = -1;
 
 static int accel_self_test[STK_AXES_NUM] = {0};
 static s16 accel_xyz_offset[STK_AXES_NUM] = {0};
@@ -2284,14 +2284,17 @@ static int stk8baxx_i2c_probe(struct i2c_client *client, const struct i2c_device
 	mutex_init(&stk->reg_lock);
 	if (stk_check_pid(stk)) {
 		STK_ACC_ERR("check sensor id fail!");
+		error = -ENODEV;
 		goto exit_stk_init_error;
 	}
 
 	stk_data_initialize(stk);
 	atomic_set(&stk->trace, 0);
 
-	if (stk_reg_init(stk)) {
-		STK_ACC_ERR("stk8baxx initialization failed");
+	error = stk_reg_init(stk);
+	if (error) {
+		STK_ACC_ERR("stk8baxx initialization failed:%d", error);
+		error = -ENODEV;
 		goto exit_stk_init_error;
 	}
 

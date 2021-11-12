@@ -279,6 +279,7 @@ struct mt8168_cm_ctrl_reg {
 struct mt8168_control_data {
 	bool bypass_cm1;
 	bool bypass_cm2;
+	bool dl_p_state;
 	unsigned int loopback_type;
 };
 

@@ -5185,6 +5185,39 @@ REPORT_MISC:
 }
 #endif
 
+#if CFG_SUPPORT_ANTSWAP_MONITOR
+void nicCmdEventQueryAntSwapMetrics(IN struct ADAPTER *prAdapter,
+	IN struct CMD_INFO *prCmdInfo, IN uint8_t *pucEventBuf)
+{
+	struct EVENT_ANT_SWAP_INDICATE *prEventSwaIndicate;
+	struct GLUE_INFO *prGlueInfo;
+	uint32_t u4QueryInfoLen;
+	struct EVENT_ANT_SWAP_INDICATE *prAntSwapInfo;
+
+	ASSERT(prAdapter);
+	ASSERT(prCmdInfo);
+	ASSERT(pucEventBuf);
+
+	DBGLOG(NIC, LOUD, "nicCmdEventQueryAntSwapMetrics\n");
+
+	prEventSwaIndicate = (struct EVENT_ANT_SWAP_INDICATE *) pucEventBuf;
+
+	prGlueInfo = prAdapter->prGlueInfo;
+
+	u4QueryInfoLen = sizeof(struct PARAM_ANTSWITCH_INFO);
+	prAntSwapInfo = (struct EVENT_ANT_SWAP_INDICATE *)
+			    prCmdInfo->pvInformationBuffer;
+	if (prEventSwaIndicate && prAntSwapInfo) {
+		kalMemCopy(prAntSwapInfo,
+			   prEventSwaIndicate,
+			   (sizeof(struct EVENT_ANT_SWAP_INDICATE)));
+	}
+	if (prCmdInfo->fgIsOid)
+		kalOidComplete(prGlueInfo, prCmdInfo->fgSetQuery,
+			       u4QueryInfoLen, WLAN_STATUS_SUCCESS);
+}
+#endif
+
 #if CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS
 void nicCmdEventGetFwActiveTimeStatistics(IN struct ADAPTER *prAdapter,
 	IN struct CMD_INFO *prCmdInfo,

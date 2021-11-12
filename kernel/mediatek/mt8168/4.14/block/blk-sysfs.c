@@ -806,7 +806,7 @@ static void __blk_release_queue(struct work_struct *work)
 
 	if (q->elevator) {
 		ioc_clear_queue(q);
-		elevator_exit(q, q->elevator);
+		__elevator_exit(q, q->elevator);
 	}
 
 	blk_free_queue_stats(q->stats);

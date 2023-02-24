@@ -29,6 +29,7 @@ SCRIPT_BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Configuration file for the build.
 CONFIG_FILE="${SCRIPT_BASE_DIR}/build_kernel_config.sh"
+PATCH_FILE="${SCRIPT_BASE_DIR}/platform_patch.txt"
 
 # Workspace directory & relevant temp folders.
 WORKSPACE_DIR="$(mktemp -d)"
@@ -116,6 +117,16 @@ function download_toolchain {
 function extract_tarball {
     echo "Extracting tarball to ${PLATFORM_EXTRACT_DIR}"
     tar xf "${PLATFORM_TARBALL}" -C ${PLATFORM_EXTRACT_DIR}
+}
+
+function apply_patch {
+    if [[ -f "${PATCH_FILE}" ]]
+    then
+        echo "Applying patch to ${PLATFORM_EXTRACT_DIR}"
+        pushd ${PLATFORM_EXTRACT_DIR}
+        patch -p1 < ${PATCH_FILE}
+        popd
+    fi
 }
 
 function exec_build_kernel {
@@ -206,6 +217,7 @@ if [ -z "$(ls -A ${TOOLCHAIN_DIR})" ]; then
     download_toolchain
 fi
 extract_tarball
+apply_patch
 
 # Phase 3: build
 exec_build_kernel

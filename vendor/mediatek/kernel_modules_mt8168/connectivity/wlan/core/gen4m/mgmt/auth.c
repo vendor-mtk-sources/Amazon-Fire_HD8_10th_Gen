@@ -717,6 +717,10 @@ authCheckRxAuthFrameStatus(IN struct ADAPTER *prAdapter,
 	/* 4 <2> Parse the Fixed Fields of Authentication Frame Body. */
 	/* WLAN_GET_FIELD_16(&prAuthFrame->u2AuthAlgNum, &u2RxAuthAlgNum); */
 	u2RxAuthAlgNum = prAuthFrame->u2AuthAlgNum;
+#if CFG_SUPPORT_RSSI_STATISTICS
+	prAdapter->arRxRssiStatistics.ucAuthRcpi = nicRxGetRcpiValueFromRxv(RCPI_MODE_MAX, prSwRfb);
+	prAdapter->arRxRssiStatistics.ucAuthRetransmission = (prAuthFrame->u2FrameCtrl & MASK_FC_RETRY);
+#endif
 	/* NOTE(Kevin): Optimized for ARM */
 	if (u2RxAuthAlgNum != (uint16_t) prStaRec->ucAuthAlgNum) {
 		DBGLOG(SAA, WARN,

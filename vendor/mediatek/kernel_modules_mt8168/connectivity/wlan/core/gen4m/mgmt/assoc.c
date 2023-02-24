@@ -984,6 +984,11 @@ assocCheckRxReAssocRspFrameStatus(IN struct ADAPTER *prAdapter,
 	/* 4 <2> Parse the Header of (Re)Association Resp Frame. */
 	/* WLAN_GET_FIELD_16(&prAssocRspFrame->u2FrameCtrl, &u2RxFrameCtrl); */
 	u2RxFrameCtrl = prAssocRspFrame->u2FrameCtrl;
+
+#if CFG_SUPPORT_RSSI_STATISTICS
+	prAdapter->arRxRssiStatistics.ucAssocRcpi = nicRxGetRcpiValueFromRxv(RCPI_MODE_MAX, prSwRfb);
+	prAdapter->arRxRssiStatistics.ucAssocRetransmission = (u2RxFrameCtrl & MASK_FC_RETRY);
+#endif
 	/* NOTE(Kevin): Optimized for ARM */
 	u2RxFrameCtrl &= MASK_FRAME_TYPE;
 	if (prStaRec->fgIsReAssoc) {

@@ -2576,7 +2576,7 @@ uint32_t scanAddScanResult(IN struct ADAPTER *prAdapter,
 		}
 	}
 
-	if (prBssDesc->fgIsValidSSID && prBssDesc->u2RawLength != 0) {
+	if (prBssDesc->u2RawLength != 0) {
 		kalIndicateBssInfo(prAdapter->prGlueInfo,
 			   prBssDesc->aucRawBuf,
 			   prBssDesc->u2RawLength,
@@ -3620,16 +3620,14 @@ void scanReportBss2Cfg80211(IN struct ADAPTER *prAdapter,
 				SpecificprBssDesc->fgIsValidSSID);
 
 			if (eBSSType == BSS_TYPE_INFRASTRUCTURE) {
-				if (SpecificprBssDesc->fgIsValidSSID) {
-					kalIndicateBssInfo(
-						prAdapter->prGlueInfo,
-						(uint8_t *)
-						SpecificprBssDesc->aucRawBuf,
-						SpecificprBssDesc->u2RawLength,
-						SpecificprBssDesc->ucChannelNum,
-						RCPI_TO_dBm(
-						SpecificprBssDesc->ucRCPI));
-				}
+				kalIndicateBssInfo(
+					prAdapter->prGlueInfo,
+					(uint8_t *)
+					SpecificprBssDesc->aucRawBuf,
+					SpecificprBssDesc->u2RawLength,
+					SpecificprBssDesc->ucChannelNum,
+					RCPI_TO_dBm(
+					SpecificprBssDesc->ucRCPI));
 			} else {
 
 				rChannelInfo.ucChannelNum
@@ -3701,8 +3699,7 @@ void scanReportBss2Cfg80211(IN struct ADAPTER *prAdapter,
 #undef TEMP_LOG_TEMPLATE
 
 				if (eBSSType == BSS_TYPE_INFRASTRUCTURE) {
-					if (prBssDesc->u2RawLength != 0 &&
-						prBssDesc->fgIsValidSSID) {
+					if (prBssDesc->u2RawLength != 0) {
 						kalIndicateBssInfo(
 							prAdapter->prGlueInfo,
 							(uint8_t *)

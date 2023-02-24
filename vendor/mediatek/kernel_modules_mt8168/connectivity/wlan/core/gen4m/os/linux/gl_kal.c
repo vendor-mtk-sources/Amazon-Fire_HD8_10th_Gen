@@ -1541,6 +1541,14 @@ kalIndicateStatusAndComplete(IN struct GLUE_INFO
 			   prGlueInfo->rFtIeForTx.u4IeLength);
 		kalMemZero(&prGlueInfo->rFtIeForTx,
 			   sizeof(prGlueInfo->rFtIeForTx));
+#if CFG_SUPPORT_RSSI_STATISTICS
+		if (prGlueInfo->prAdapter->prAisBssInfo) {
+			wlanGetTxRxCount(prGlueInfo->prAdapter, prGlueInfo->prAdapter->prAisBssInfo->ucBssIndex);
+			prGlueInfo->prAdapter->ucAisConnectionStatus = PARAM_AIS_STATE_DISCONNECTED;
+		}
+		else
+			DBGLOG(AIS, INFO, "[wifi] prAisBssInfo is Null get count fail\n");
+#endif
 
 		prGlueInfo->eParamMediaStateIndicated =
 			PARAM_MEDIA_STATE_DISCONNECTED;
@@ -1563,6 +1571,15 @@ kalIndicateStatusAndComplete(IN struct GLUE_INFO
 
 		DBGLOG(AIS, INFO, "[wifi] %s netif_carrier_off locally\n",
 				    prGlueInfo->prDevHandler->name);
+#if CFG_SUPPORT_RSSI_STATISTICS
+		if (prGlueInfo->prAdapter->prAisBssInfo) {
+			wlanGetTxRxCount(prGlueInfo->prAdapter, prGlueInfo->prAdapter->prAisBssInfo->ucBssIndex);
+			prGlueInfo->prAdapter->ucAisConnectionStatus = PARAM_AIS_STATE_DISCONNECTED;
+		}
+		else
+			DBGLOG(AIS, INFO, "[wifi] prAisBssInfo is Null get count fail\n");
+#endif
+
 
 		netif_carrier_off(prGlueInfo->prDevHandler);
 		prGlueInfo->eParamMediaStateIndicated = PARAM_MEDIA_STATE_DISCONNECTED_LOCALLY;

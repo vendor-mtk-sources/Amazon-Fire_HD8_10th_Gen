@@ -954,6 +954,8 @@ enum ENUM_TX_RESULT_CODE {
 	TX_RESULT_DROPPED_IN_FW,
 	TX_RESULT_QUEUE_CLEARANCE,
 	TX_RESULT_INACTIVE_BSS,
+	TX_RESULT_UNINITIALIZED = 48, // driver only
+	TX_RESULT_1XTX_CLEAR, // driver only
 	TX_RESULT_NUM
 };
 
@@ -1091,7 +1093,26 @@ struct WIFI_LINK_QUALITY_INFO {
 };
 #endif /* CFG_SUPPORT_LINK_QUALITY_MONITOR */
 
-#if CFG_SUPPORT_IOT_AP_BLACKLIST
+#if CFG_SUPPORT_RSSI_STATISTICS
+struct WIFI_RX_RSSI_STATISTICS {
+	uint8_t ucAuthRcpi;
+	uint8_t ucAuthRetransmission;
+	uint8_t ucAssocRcpi;
+	uint8_t ucAssocRetransmission;
+	uint8_t ucM1Rcpi;
+	uint8_t ucM1Retransmission;
+};
+
+struct PARAM_GET_RSSI_STATISTICS {
+	struct WIFI_RX_RSSI_STATISTICS arRxRssiStatistics;
+	uint32_t u4TxPktNum;
+	uint32_t u4RxPktNum;
+	uint8_t ucAisConnectionStatus;
+};
+
+#endif
+
+#if CFG_SUPPORT_IOT_AP_BLOCKLIST
 enum ENUM_WLAN_IOT_AP_FLAG_T {
 	WLAN_IOT_AP_FG_VERSION = 0,
 	WLAN_IOT_AP_FG_OUI,
@@ -1510,7 +1531,7 @@ uint32_t wlanCfgParseArgumentLong(int8_t *cmdLine, int32_t *argc,
 				  int8_t *argv[]);
 #endif
 
-#if CFG_SUPPORT_IOT_AP_BLACKLIST
+#if CFG_SUPPORT_IOT_AP_BLOCKLIST
 void wlanCfgLoadIotApRule(IN struct ADAPTER *prAdapter);
 void wlanCfgDumpIotApRule(IN struct ADAPTER *prAdapter);
 #endif
@@ -1651,5 +1672,8 @@ void wlanFinishCollectingLinkQuality(struct GLUE_INFO *prGlueInfo);
 #if CFG_SUPPORT_DATA_STALL
 void wlanCustomMonitorFunction(struct ADAPTER *prAdapter,
 	struct WIFI_LINK_QUALITY_INFO *prLinkQualityInfo);
+#endif
+#if CFG_SUPPORT_RSSI_STATISTICS
+void wlanGetTxRxCount(IN struct ADAPTER *prAdapter, uint8_t ucBssIndex);
 #endif /* CFG_SUPPORT_DATA_STALL */
 

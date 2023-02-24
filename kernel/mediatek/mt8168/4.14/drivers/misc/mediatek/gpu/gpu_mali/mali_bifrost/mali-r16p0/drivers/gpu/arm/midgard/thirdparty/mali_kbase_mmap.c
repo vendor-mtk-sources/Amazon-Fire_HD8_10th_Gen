@@ -271,6 +271,26 @@ unsigned long kbase_get_unmapped_area(struct file *filp,
 	bool is_same_4gb_page = false;
 	unsigned long ret;
 
+	/* the 'nolock' form is used here:
+	 * - the base_pfn of the SAME_VA zone does not change
+	 * - in normal use, va_size_pages is constant once the first allocation
+	 *   begins
+	 *
+	 * However, in abnormal use this function could be processing whilst
+	 * another new zone is being setup in a different thread (e.g. to
+	 * borrow part of the SAME_VA zone). In the worst case, this path may
+	 * witness a higher SAME_VA end_pfn than the code setting up the new
+	 * zone.
+	 *
+	 * This is safe because once we reach the main allocation functions,
+	 * we'll see the updated SAME_VA end_pfn and will determine that there
+	 * is no free region at the address found originally by too large a
+	 * same_va_end_addr here, and will fail the allocation gracefully.
+	 */
+	struct kbase_reg_zone *zone =
+		kbase_ctx_reg_zone_get_nolock(kctx, KBASE_REG_ZONE_SAME_VA);
+	u64 same_va_end_addr = kbase_reg_zone_end_pfn(zone) << PAGE_SHIFT;
+
 	/* err on fixed address */
 	if ((flags & MAP_FIXED) || addr)
 		return -EINVAL;
@@ -281,9 +301,8 @@ unsigned long kbase_get_unmapped_area(struct file *filp,
 		return -ENOMEM;
 
 	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
-
-		high_limit = min_t(unsigned long, mm->mmap_base,
-				(kctx->same_va_end << PAGE_SHIFT));
+		high_limit =
+			min_t(unsigned long, mm->mmap_base, same_va_end_addr);
 
 		/* If there's enough (> 33 bits) of GPU VA space, align
 		 * to 2MB boundaries.
@@ -303,12 +322,15 @@ unsigned long kbase_get_unmapped_area(struct file *filp,
 	if ((PFN_DOWN(BASE_MEM_COOKIE_BASE) <= pgoff) &&
 		(PFN_DOWN(BASE_MEM_FIRST_FREE_ADDRESS) > pgoff)) {
 			int cookie = pgoff - PFN_DOWN(BASE_MEM_COOKIE_BASE);
-			struct kbase_va_region *reg =
-					kctx->pending_regions[cookie];
+			struct kbase_va_region *reg;
 
-			if (!reg)
+			/* Need to hold gpu vm lock when using reg */
+			kbase_gpu_vm_lock(kctx);
+			reg = kctx->pending_regions[cookie];
+			if (!reg) {
+				kbase_gpu_vm_unlock(kctx);
 				return -EINVAL;
-
+			}
 			if (!(reg->flags & KBASE_REG_GPU_NX)) {
 				if (cpu_va_bits > gpu_pc_bits) {
 					align_offset = 1ULL << gpu_pc_bits;
@@ -331,6 +353,7 @@ unsigned long kbase_get_unmapped_area(struct file *filp,
 			} else if (reg->flags & KBASE_REG_GPU_VA_SAME_4GB_PAGE) {
 				is_same_4gb_page = true;
 			}
+			kbase_gpu_vm_unlock(kctx);
 #ifndef CONFIG_64BIT
 	} else {
 		return current->mm->get_unmapped_area(filp, addr, len, pgoff,
@@ -349,11 +372,10 @@ unsigned long kbase_get_unmapped_area(struct file *filp,
 			is_same_4gb_page);
 
 	if (IS_ERR_VALUE(ret) && high_limit == mm->mmap_base &&
-			high_limit < (kctx->same_va_end << PAGE_SHIFT)) {
+	    high_limit < same_va_end_addr) {
 		/* Retry above mmap_base */
 		info.low_limit = mm->mmap_base;
-		info.high_limit = min_t(u64, TASK_SIZE,
-					(kctx->same_va_end << PAGE_SHIFT));
+		info.high_limit = min_t(u64, TASK_SIZE, same_va_end_addr);
 
 		ret = kbase_unmapped_area_topdown(&info, is_shader_code,
 				is_same_4gb_page);

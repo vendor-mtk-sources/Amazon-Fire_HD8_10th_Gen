@@ -92,6 +92,7 @@ enum {
 	CHARGER_DEV_NOTIFY_EOC,
 	CHARGER_DEV_NOTIFY_RECHG,
 	CHARGER_DEV_NOTIFY_SAFETY_TIMEOUT,
+	CHARGER_DEV_NOTIFY_VBUS_EVENT,
 };
 
 /*
@@ -151,6 +152,10 @@ struct battery_thermal_protection_data {
 
 struct charger_custom_data {
 	int battery_cv;	/* uv */
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	int battery_cv_aging1;	/* uv */
+	int battery_cv_aging2;	/* uv */
+#endif
 	int max_charger_voltage;
 	int max_charger_voltage_setting;
 	int min_charger_voltage;
@@ -181,6 +186,21 @@ struct charger_custom_data {
 	int jeita_temp_t1_to_t2_cv;
 	int jeita_temp_t0_to_t1_cv;
 	int jeita_temp_below_t0_cv;
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	int jeita_temp_above_t4_cv_voltage_aging1;
+	int jeita_temp_t3_to_t4_cv_voltage_aging1;
+	int jeita_temp_t2_to_t3_cv_voltage_aging1;
+	int jeita_temp_t1_to_t2_cv_voltage_aging1;
+	int jeita_temp_t0_to_t1_cv_voltage_aging1;
+	int jeita_temp_below_t0_cv_voltage_aging1;
+
+	int jeita_temp_above_t4_cv_voltage_aging2;
+	int jeita_temp_t3_to_t4_cv_voltage_aging2;
+	int jeita_temp_t2_to_t3_cv_voltage_aging2;
+	int jeita_temp_t1_to_t2_cv_voltage_aging2;
+	int jeita_temp_t0_to_t1_cv_voltage_aging2;
+	int jeita_temp_below_t0_cv_voltage_aging2;
+#endif
 	int temp_t4_thres;
 	int temp_t4_thres_minus_x_degree;
 	int temp_t3_thres;
@@ -194,6 +214,7 @@ struct charger_custom_data {
 	int temp_neg_10_thres;
 
 	int temp_t0_charging_current_limit;
+	int temp_t3_charging_current_limit;
 	/* battery temperature protection */
 	int mtk_temperature_recharge_support;
 	int max_charge_temp;
@@ -379,30 +400,31 @@ struct charger_manager {
 	atomic_t enable_kpoc_shdn;
 	/* top-off mode */
 	struct timespec chr_plug_in_time;
-	unsigned int top_off_mode_time_threshold;
+	__kernel_time_t top_off_mode_time_threshold;
 	int custom_charging_cv;
 	int top_off_mode_cv;
-	unsigned long custom_plugin_time;
+
+	__kernel_time_t custom_plugin_time;
 	unsigned int top_off_mode_enable; /* 0=ratail unit, 1=demo unit */
 
 	int vbat_exit_top_off_mode;
 
 	bool enable_top_off_mode_debounce;
 	/* The disconnection time to keep top-off mode. */
-	uint64_t top_off_mode_keep_time;
+	__kernel_time_t top_off_mode_keep_time;
 	/* Enable the feature detect bad charger */
 	bool enable_bat_eoc_protect;
 	bool bat_eoc_protect;
-	int vbat_eoc;
+	uint32_t soc_exit_eoc;
 
 	struct timespec disconnect_time;
-	uint64_t disconnect_duration;
-	uint32_t bat_eoc_protect_reset_time;
-	uint32_t sw_safety_timer_reset_time;
+	__kernel_time_t disconnect_duration;
+	__kernel_time_t bat_eoc_protect_reset_time;
+	__kernel_time_t sw_safety_timer_reset_time;
 
-	uint64_t backup_top_off_mode_keep_time;
-	uint32_t backup_bat_eoc_protect_reset_time;
-	int backup_max_charging_time;
+	__kernel_time_t backup_top_off_mode_keep_time;
+	__kernel_time_t backup_bat_eoc_protect_reset_time;
+	__kernel_time_t backup_max_charging_time;
 
 	/* ATM */
 	bool atm_enabled;
@@ -440,6 +462,7 @@ extern int pmic_get_bif_battery_voltage(int *vbat);
 extern int pmic_is_bif_exist(void);
 extern int pmic_enable_hw_vbus_ovp(bool enable);
 extern bool pmic_is_battery_exist(void);
+extern int mtk_get_battery_cv(struct charger_manager *info);
 
 /* FIXME */
 enum usb_state_enum {

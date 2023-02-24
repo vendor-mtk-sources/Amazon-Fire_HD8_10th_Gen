@@ -175,7 +175,7 @@ void bssDetermineApBssInfoPhyTypeSet(IN struct ADAPTER
 				     OUT struct BSS_INFO *prBssInfo);
 int8_t bssGetRxNss(IN struct ADAPTER *prAdapter,
 	IN struct BSS_DESC *prBssDesc);
-#if CFG_SUPPORT_IOT_AP_BLACKLIST
+#if CFG_SUPPORT_IOT_AP_BLOCKLIST
 uint32_t bssGetIotApAction(IN struct ADAPTER *prAdapter,
 	IN struct BSS_DESC *prBssDesc);
 #endif

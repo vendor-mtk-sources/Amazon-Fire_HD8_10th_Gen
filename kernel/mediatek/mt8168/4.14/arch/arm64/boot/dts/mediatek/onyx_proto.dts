@@ -1788,8 +1788,50 @@ ROOT_NODE {
 	total_battery_number = <1>;
 	bat_id_volt_thres = <1200 (-1)>;
 	#include "bat_setting/onyx_proto_battery_table_ext_ATL.dtsi"
-	idme_battery_names = "Sunwoda/ATL", "Desay/LiShen", "Desay/ATL";
-	idme_battery_id = <0x1311 0x1337 0x1331>;
+
+	Q_MAX_T0 = <4880>;
+	Q_MAX_T1 = <4880>;
+	Q_MAX_T2 = <4880>;
+	Q_MAX_T3 = <4950>;
+	Q_MAX_T4 = <5000>;
+
+	Q_MAX_H_CURRENT_T0 = <4880>;
+	Q_MAX_H_CURRENT_T1 = <4880>;
+	Q_MAX_H_CURRENT_T2 = <4880>;
+	Q_MAX_H_CURRENT_T3 = <4950>;
+	Q_MAX_H_CURRENT_T4 = <5000>;
+
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	#include "bat_setting/onyx_battery_table_ext_ATL_4V.dtsi"
+
+	Q_MAX_1_T0 = <3180>;
+	Q_MAX_1_T1 = <3210>;
+	Q_MAX_1_T2 = <3216>;
+	Q_MAX_1_T3 = <3213>;
+	Q_MAX_1_T4 = <3205>;
+
+	Q_MAX_H_CURRENT_1_T0 = <3180>;
+	Q_MAX_H_CURRENT_1_T1 = <3210>;
+	Q_MAX_H_CURRENT_1_T2 = <3216>;
+	Q_MAX_H_CURRENT_1_T3 = <3213>;
+	Q_MAX_H_CURRENT_1_T4 = <3205>;
+
+	#include "bat_setting/onyx_battery_table_ext_ATL_3V9.dtsi"
+
+	Q_MAX_2_T0 = <2540>;
+	Q_MAX_2_T1 = <2560>;
+	Q_MAX_2_T2 = <2560>;
+	Q_MAX_2_T3 = <2550>;
+	Q_MAX_2_T4 = <2595>;
+
+	Q_MAX_H_CURRENT_2_T0 = <2540>;
+	Q_MAX_H_CURRENT_2_T1 = <2560>;
+	Q_MAX_H_CURRENT_2_T2 = <2560>;
+	Q_MAX_H_CURRENT_2_T3 = <2550>;
+	Q_MAX_H_CURRENT_2_T4 = <2595>;
+#endif
+	idme_battery_names = "Sunwoda/ATL";
+	idme_battery_id = <0x1311>;
 	ui_fast_tracking_en = <0>;
 };
 
@@ -1810,9 +1852,10 @@ ROOT_NODE {
 	temp_t4_threshold = <55>;
 	temp_t3_threshold = <45>;
 	temp_t1_threshold = <15>;
+	temp_t0_threshold = <0>;
 	/* T3/T1 charging current */
-	temp_t3_input_current = <1800000>;
-	temp_t3_charger_current = <1800000>;
+	temp_t3_input_current = <1000000>;
+	temp_t3_charger_current = <1200000>;
 	temp_t1_input_current = <800000>;
 	temp_t1_charger_current = <800000>;
 };
@@ -1825,6 +1868,8 @@ ROOT_NODE {
 	enable_bat_eoc_protect;
 	enable_sw_safety_timer;
 	enable_top_off_mode_debounce;
+
+	soc_exit_eoc = <96>;   /* below 96% to exit EOC mode */
 
 	max_charging_time = <72000>;	/* 72000 seconds (20hours) */
 	vbat_exit_top_off_mode = <4000>; /* 4000mV */
@@ -1869,6 +1914,7 @@ ROOT_NODE {
 	temp_neg_10_thres = <0>;
 
 	temp_t0_charging_current_limit = <800000>;
+	temp_t3_charging_current_limit = <2200000>;
 
 	top_off_mode_time_threshold = <604800>; /* 7*86400 (7days) */
 	top_off_mode_cv = <4100000>; /* CV, uinit:uV */
@@ -1886,4 +1932,23 @@ ROOT_NODE {
 	adapter_12w_iusb_lim = <2500000>;	/* uA */
 	dcap_support;
 
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	battery_cv_aging1 = <4000000>;
+	/* SW JEITAfor aging battery */
+	jeita_temp_above_t4_cv_voltage_aging1 = <3900000>;
+	jeita_temp_t3_to_t4_cv_voltage_aging1 = <3900000>;
+	jeita_temp_t2_to_t3_cv_voltage_aging1 = <4000000>;
+	jeita_temp_t1_to_t2_cv_voltage_aging1 = <4000000>;
+	jeita_temp_t0_to_t1_cv_voltage_aging1 = <4000000>;
+	jeita_temp_below_t0_cv_voltage_aging1 = <4000000>;
+
+	battery_cv_aging2 = <3900000>;
+	/* SW JEITAfor aging battery */
+	jeita_temp_above_t4_cv_voltage_aging2 = <3900000>;
+	jeita_temp_t3_to_t4_cv_voltage_aging2 = <3900000>;
+	jeita_temp_t2_to_t3_cv_voltage_aging2 = <3900000>;
+	jeita_temp_t1_to_t2_cv_voltage_aging2 = <3900000>;
+	jeita_temp_t0_to_t1_cv_voltage_aging2 = <3900000>;
+	jeita_temp_below_t0_cv_voltage_aging2 = <3900000>;
+#endif
 };

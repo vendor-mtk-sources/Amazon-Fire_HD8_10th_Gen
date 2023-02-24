@@ -3944,7 +3944,7 @@ int32_t wlanOnWhenProbeSuccess(struct GLUE_INFO *prGlueInfo,
 		kalIndicateAgpsNotify(prAdapter, AGPS_EVENT_WLAN_ON, NULL, 0);
 
 #endif
-#if CFG_SUPPORT_IOT_AP_BLACKLIST
+#if CFG_SUPPORT_IOT_AP_BLOCKLIST
 		wlanCfgLoadIotApRule(prAdapter);
 		wlanCfgDumpIotApRule(prAdapter);
 #endif
@@ -4170,6 +4170,7 @@ static int32_t wlanOnAtReset(void)
 	struct CMD_FW_ACTIVE_TIME_STATISTICS rCmdFwActiveTime = {0};
 	int32_t rCmdStatus = WLAN_STATUS_SUCCESS;
 #endif
+	GLUE_SPIN_LOCK_DECLARATION();
 
 	DBGLOG(INIT, INFO, "Driver On during Reset\n");
 
@@ -4244,6 +4245,13 @@ static int32_t wlanOnAtReset(void)
 		prHifInfo->fgIsErrRecovery = FALSE;
 		nicSerStartTxRx(prAdapter);
 		prErrRecoveryCtrl->eErrRecovState = ERR_RECOV_STOP_IDLE; /* fos_change end*/
+		/* fos_change begin*/
+		GLUE_ACQUIRE_SPIN_LOCK(prGlueInfo, SPIN_LOCK_NET_DEV);
+		if (prGlueInfo->prScanRequest) {
+			kalCfg80211ScanDone(prGlueInfo->prScanRequest, TRUE);
+			prGlueInfo->prScanRequest = NULL;
+		}
+		GLUE_RELEASE_SPIN_LOCK(prGlueInfo, SPIN_LOCK_NET_DEV);/* fos_change end*/
 
 		/* Resend schedule scan */
 		prAdapter->rWifiVar.rConnSettings.fgIsScanReqIssued = FALSE;

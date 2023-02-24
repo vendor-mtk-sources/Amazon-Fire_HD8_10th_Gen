@@ -53,6 +53,7 @@
 #define I2C_TIME_DEFAULT_VALUE		0x0003
 #define I2C_WRRD_TRANAC_VALUE		0x0002
 #define I2C_RD_TRANAC_VALUE		0x0001
+#define I2C_SLAVE_ADDR_ONLY		BIT(8)
 
 #define I2C_DMA_CON_TX			0x0000
 #define I2C_DMA_CON_RX			0x0001
@@ -473,7 +474,10 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 	else
 		writew(I2C_FS_START_CON, i2c->base + OFFSET_EXT_CONF);
 
-	addr_reg = i2c_8bit_addr_from_msg(msgs);
+	if (msgs->len == 0)
+		addr_reg = i2c_8bit_addr_from_msg(msgs) | I2C_SLAVE_ADDR_ONLY;
+	else
+		addr_reg = i2c_8bit_addr_from_msg(msgs);
 	writew(addr_reg, i2c->base + OFFSET_SLAVE_ADDR);
 
 	/* Clear interrupt status */
@@ -679,8 +683,15 @@ static int mtk_i2c_transfer(struct i2c_adapter *adap,
 		i2c->ignore_restart_irq = false;
 
 	while (left_num--) {
-		if (!msgs->buf) {
+		if (!msgs->buf && msgs->len) {
 			dev_dbg(i2c->dev, "data buffer is NULL.\n");
+			ret = -EINVAL;
+			goto err_exit;
+		}
+
+		if (msgs->len == 0 &&
+		    i2c_check_quirks(&i2c->adap, I2C_AQ_NO_ZERO_LEN)) {
+			dev_dbg(i2c->dev, "Message length is 0.\n");
 			ret = -EINVAL;
 			goto err_exit;
 		}

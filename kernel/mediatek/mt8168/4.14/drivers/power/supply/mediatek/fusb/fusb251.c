@@ -1245,17 +1245,19 @@ err_id:
 
 static int fusb251_i2c_remove(struct i2c_client *client)
 {
+	return 0;
+}
+
+static void fusb251_i2c_shutdown(struct i2c_client *client)
+{
 	struct fusb251 *fusb251 =
-			(struct fusb251 *)i2c_get_clientdata(client);
+		 (struct fusb251 *)i2c_get_clientdata(client);
 
+	cancel_delayed_work_sync(&fusb251->routine_work);
 	fusb251_delete_attr(fusb251->dev);
-
-	i2c_unregister_device(client);
-
 	kfree(fusb251);
 	fusb251 = NULL;
-
-	return 0;
+	g_fusb251 = NULL;
 }
 
 static const struct i2c_device_id fusb251_i2c_id[] = {
@@ -1279,6 +1281,7 @@ static struct i2c_driver fusb251_i2c_driver = {
 	},
 	.probe =    fusb251_i2c_probe,
 	.remove =   fusb251_i2c_remove,
+	.shutdown = fusb251_i2c_shutdown,
 	.id_table = fusb251_i2c_id,
 };
 

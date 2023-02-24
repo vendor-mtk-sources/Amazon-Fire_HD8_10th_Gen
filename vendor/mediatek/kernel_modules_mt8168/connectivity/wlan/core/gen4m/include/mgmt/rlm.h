@@ -338,6 +338,18 @@ struct RADIO_MEASUREMENT_REPORT_PARAMS {
 	struct LINK rFreeReportLink;
 };
 
+#if CFG_SUPPORT_DFS
+struct SWITCH_CH_AND_BAND_PARAMS {
+	uint8_t ucCsaNewCh;
+	uint8_t ucCsaCount;
+	uint8_t ucVhtS1;
+	uint8_t ucVhtS2;
+	uint8_t ucVhtBw;
+	enum ENUM_CHNL_EXT eSco;
+	uint8_t ucBssIndex;
+};
+#endif
+
 /*******************************************************************************
  *                            P U B L I C   D A T A
  *******************************************************************************
@@ -389,6 +401,19 @@ struct RADIO_MEASUREMENT_REPORT_PARAMS {
 	((_prBssInfo)->eBand == BAND_5G && \
 	(_prAdapter)->rWifiVar.rConnSettings.uc5GBandwidthMode \
 	== CONFIG_BW_20_40M))
+
+#if CFG_SUPPORT_DFS
+#define MAX_CSA_COUNT 255
+#define HAS_CH_SWITCH_PARAMS(prCSAParams) (prCSAParams->ucCsaNewCh > 0)
+#define HAS_SCO_PARAMS(prCSAParams) (prCSAParams->eSco > 0)
+#define HAS_WIDE_BAND_PARAMS(prCSAParams) \
+	(prCSAParams->ucVhtBw > 0 || \
+	 prCSAParams->ucVhtS1 > 0 || \
+	 prCSAParams->ucVhtS2 > 0)
+#define SHOULD_CH_SWITCH(current, prCSAParams) \
+	(HAS_CH_SWITCH_PARAMS(prCSAParams) && \
+	 (current < prCSAParams->ucCsaCount))
+#endif
 
 /*******************************************************************************
  *                   F U N C T I O N   D E C L A R A T I O N S
@@ -508,6 +533,10 @@ void rlmGenerateCountryIE(struct ADAPTER *prAdapter,
 #if CFG_SUPPORT_DFS
 void rlmProcessSpecMgtAction(struct ADAPTER *prAdapter,
 			     struct SW_RFB *prSwRfb);
+void rlmResetCSAParams(struct BSS_INFO *prBssInfo);
+
+void rlmCsaTimeout(IN struct ADAPTER *prAdapter,
+	unsigned long ulParamPtr);
 #endif
 
 void
@@ -610,6 +639,9 @@ void rlmProcessLinkMeasurementRequest(struct ADAPTER *prAdapter,
 void rlmProcessNeighborReportResonse(struct ADAPTER *prAdapter,
 				     struct WLAN_ACTION_FRAME *prAction,
 				     uint16_t u2PacketLen);
+void rlmRevisePreferBandwidthNss(struct ADAPTER *prAdapter,
+					uint8_t ucBssIndex,
+					struct STA_RECORD *prStaRec);
 
 void rlmFillRrmCapa(uint8_t *pucCapa);
 

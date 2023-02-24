@@ -78,6 +78,12 @@
  *******************************************************************************
  */
 #include "gl_typedef.h"
+#ifdef CONFIG_AMZN_METRICS_LOG
+#include <linux/amzn_metricslog.h>
+#endif
+#ifdef CONFIG_AMAZON_METRICS_LOG
+#include <linux/metricslog.h>
+#endif
 
 extern uint8_t aucDebugModule[];
 extern uint32_t au4LogLevel[];
@@ -525,6 +531,12 @@ u_int8_t wlanDbgSetGlobalLogLevel(uint32_t u4Module, uint32_t u4Level);
 void wlanFillTimestamp(struct ADAPTER *prAdapter, void *pvPacket,
 		       uint8_t ucPhase);
 void glNotifyDrvStatus(enum DRV_STATUS_T eDrvStatus, void *pvInfo);
+#if defined(CONFIG_AMAZON_METRICS_LOG) || defined(CONFIG_AMZN_METRICS_LOG)
+int minerva_log_counter_to_vitals(android_LogPriority priority,
+		const char *source, const char *key,
+		long counter_value, const char *metadata);
+#endif
+
 /*******************************************************************************
  *                              F U N C T I O N S
  *******************************************************************************

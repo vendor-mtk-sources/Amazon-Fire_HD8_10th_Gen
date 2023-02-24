@@ -69,6 +69,9 @@
  */
 #include "precomp.h"
 #include "mgmt/ais_fsm.h"
+#ifdef BUILD_QA_DBG
+extern enum UT_TRIGGER_CHIP_RESET trChipReset;
+#endif
 
 /*******************************************************************************
  *                              C O N S T A N T S
@@ -888,6 +891,7 @@ uint32_t wlanAdapterStart(IN struct ADAPTER *prAdapter,
 			DBGLOG(INIT, INFO, "Re-send nvram to fw.\n");
 			wlanSendNvramToFw(prAdapter, prRegInfo);
 		}
+		prAdapter->r1xTxDoneStatus = TX_RESULT_UNINITIALIZED;
 	} while (FALSE);
 
 	if (u4Status == WLAN_STATUS_SUCCESS) {
@@ -3007,11 +3011,22 @@ uint32_t wlanAccessRegisterStatus(IN struct ADAPTER *prAdapter,
 		if (kalIsCardRemoved(prAdapter->prGlueInfo) == TRUE ||
 				     fgIsBusAccessFailed == TRUE) {
 			u4Status = WLAN_STATUS_FAILURE;
-		} else if (nicRxWaitResponse(prAdapter,
+		}
+#ifdef BUILD_QA_DBG
+		else if ((nicRxWaitResponse(prAdapter,
 					     ucPortIdx,
 					     prEvent,
 					     u4EventLen, &u4RxPktLength) !=
-					     WLAN_STATUS_SUCCESS) {
+					     WLAN_STATUS_SUCCESS) ||
+			 (trChipReset == TRIGGER_RESET_RX_WAIT_NO_RESPONSE))
+#else
+		else if (nicRxWaitResponse(prAdapter,
+					     ucPortIdx,
+					     prEvent,
+					     u4EventLen, &u4RxPktLength) !=
+					     WLAN_STATUS_SUCCESS)
+#endif
+		{
 			GL_RESET_TRIGGER(prAdapter,
 					 RST_FLAG_DO_CORE_DUMP |
 					 RST_FLAG_PREVENT_POWER_OFF);
@@ -3019,7 +3034,18 @@ uint32_t wlanAccessRegisterStatus(IN struct ADAPTER *prAdapter,
 		} else {
 			prInitEvent = (struct INIT_WIFI_EVENT *)
 				(prEvent + prChipInfo->rxd_size);
-
+#ifdef BUILD_QA_DBG
+			if (trChipReset == TRIGGER_RESET_EID_ABNORMAL) {
+				ucSetQuery = 1;
+				prInitEvent->ucEID = INIT_EVENT_ID_ACCESS_REG;
+				DBGLOG(NIC, ERROR,"trigger chip reset EID not match the setquery %d \n",trChipReset);
+			}
+			else if (trChipReset == TRIGGER_RESET_SEQ_ABNORMAL) {
+				prInitEvent->ucSeqNum = 1;
+				ucCmdSeqNum = 2;
+				DBGLOG(NIC, ERROR,"trigger chip reset ucSeqnum !=ucCmdSeqNum %d \n",trChipReset);
+			}
+#endif
 			/* EID / SeqNum check */
 			if (((prInitEvent->ucEID != INIT_EVENT_ID_CMD_RESULT) &&
 			     (ucSetQuery == 1)) ||
@@ -4612,6 +4638,18 @@ uint32_t wlanEnqueueTxPacket(IN struct ADAPTER *prAdapter,
 	if (nicTxFillMsduInfo(prAdapter, prMsduInfo,
 			      prNativePacket)) {
 		/* prMsduInfo->eSrc = TX_PACKET_OS; */
+		if(prMsduInfo->fgIs802_1x) {
+			prAdapter->r1xTxDoneStatus = TX_RESULT_1XTX_CLEAR;
+			if(prAdapter->fgIsTest1xTx == 1) {
+				DBGLOG(RSN, STATE,
+					"%s: (fgIsTest1xTx == 1) test 1XTX frame skip\n",
+					__func__);
+				kalSendComplete(prAdapter->prGlueInfo, prNativePacket,
+				WLAN_STATUS_SUCCESS);
+				nicTxReturnMsduInfo(prAdapter, prMsduInfo);
+				return WLAN_STATUS_SUCCESS;
+			}
+		}
 
 		/* Tx profiling */
 		wlanTxProfilingTagMsdu(prAdapter, prMsduInfo,
@@ -5889,7 +5927,7 @@ void wlanSetNicResourceParameters(IN struct ADAPTER *prAdapter)
 }
 
 
-#if CFG_SUPPORT_IOT_AP_BLACKLIST
+#if CFG_SUPPORT_IOT_AP_BLOCKLIST
 void wlanCfgDumpIotApRule(IN struct ADAPTER *prAdapter)
 {
 	uint8_t ucRuleIdx;
@@ -8962,11 +9000,13 @@ wlanPktTxDone(IN struct ADAPTER *prAdapter,
 		prMsduInfo->ucWlanIndex, prMsduInfo->ucPID, rTxDoneStatus,
 		prMsduInfo->ucTxSeqNum);
 
-	if (prMsduInfo->ucPktType == ENUM_PKT_1X)
+	if (prMsduInfo->ucPktType == ENUM_PKT_1X) {
 		p2pRoleFsmNotifyEapolTxStatus(prAdapter,
 				prMsduInfo->ucBssIndex,
 				prMsduInfo->eEapolKeyType,
 				rTxDoneStatus);
+		prAdapter->r1xTxDoneStatus = rTxDoneStatus;
+	}
 
 #if CFG_SUPPORT_TDLS
 	if (prMsduInfo->ucPktType == ENUM_PKT_TDLS)
@@ -10363,4 +10403,27 @@ void wlanCustomMonitorFunction(struct ADAPTER *prAdapter,
 	}
 }
 #endif
+#if CFG_SUPPORT_RSSI_STATISTICS
+void wlanGetTxRxCount(IN struct ADAPTER *prAdapter, uint8_t ucBssIndex)
+{
+	struct PARAM_RX_TX_COUNT prTxRxCount;
+	uint32_t rStatus;
 
+
+	prTxRxCount.ucBssIndex = ucBssIndex;
+	DBGLOG(REQ, TRACE, "wlanGetTxRxCount %d\n", prTxRxCount.ucBssIndex);
+	rStatus = wlanSendSetQueryCmd(prAdapter,
+			    CMD_ID_GET_TX_RX_COUNT,
+			    FALSE,
+			    TRUE,
+			    FALSE,
+			    nicCmdEventRecordTxRxCount,
+			    nicOidCmdTimeoutCommon,
+			    sizeof(struct PARAM_RX_TX_COUNT),
+			    (uint8_t *) &prTxRxCount,
+			    NULL, 0);
+
+	if (rStatus != WLAN_STATUS_SUCCESS && rStatus != WLAN_STATUS_PENDING)
+		DBGLOG(REQ, ERROR, "Failed with status %d\n", rStatus);
+}
+#endif

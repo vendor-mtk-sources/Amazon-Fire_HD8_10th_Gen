@@ -542,6 +542,8 @@
 #if CFG_SUPPORT_WIFI_POWER_DEBUG != 0 && CFG_SUPPORT_WAKEUP_REASON_DEBUG == 0
 #error "CFG_SUPPORT_WIFI_POWER_DEBUG depends on CFG_SUPPORT_WAKEUP_REASON_DEBUG!"
 #endif /* fos_change end */
+#define CFG_SUPPORT_RSSI_STATISTICS         1
+
 
 #define CFG_INIT_POWER_SAVE_PROF		ENUM_PSP_FAST_SWITCH
 
@@ -1266,7 +1268,7 @@
  *------------------------------------------------------------------------------
  */
  #if CFG_SUPPORT_DBDC
- #define CFG_SUPPORT_IOT_AP_BLACKLIST  1
+ #define CFG_SUPPORT_IOT_AP_BLOCKLIST  1
  #define CFG_IOT_AP_RULE_MAX_CNT 32
  #define CFG_IOT_AP_DATA_MAX_LEN 16
  #endif
@@ -1289,6 +1291,20 @@
 
 #define CFG_SUPPORT_FW_ACTIVE_TIME_STATISTICS 1 /*fos_change online*/
 #define CFG_SUPPORT_ANTSWAP_MONITOR 1 /*fos_change oneline*/
+
+/*fos_change oneline */
+#ifdef BUILD_QA_DBG
+enum UT_TRIGGER_CHIP_RESET {
+	TRIGGER_RESET_START,
+	TRIGGER_RESET_LP_OWN_BACK_FAILED,
+	TRIGGER_RESET_CHIP_DEAD,
+	TRIGGER_RESET_ABNORMAL_INT,
+	TRIGGER_RESET_RX_WAIT_NO_RESPONSE,
+	TRIGGER_RESET_EID_ABNORMAL,
+	TRIGGER_RESET_SEQ_ABNORMAL,
+	TRIGGER_RESET_END,
+};
+#endif
 
 /*******************************************************************************
  *                             D A T A   T Y P E S

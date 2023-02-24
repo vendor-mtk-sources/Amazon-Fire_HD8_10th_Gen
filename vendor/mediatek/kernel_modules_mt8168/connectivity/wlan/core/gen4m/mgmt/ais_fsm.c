@@ -721,6 +721,13 @@ void aisFsmStateInit_JOIN(IN struct ADAPTER *prAdapter,
 		ASSERT(0);
 	}
 
+#if CFG_SUPPORT_RSSI_STATISTICS
+	prAdapter->u4TxTotalPktNum = 0;
+	prAdapter->u4RxTotalPktNum = 0;
+	wlanGetTxRxCount(prAdapter, prAisBssInfo->ucBssIndex);
+	prAdapter->ucAisConnectionStatus = PARAM_AIS_STATE_CONNECTING;
+#endif
+
 	/* 4 <5> Overwrite Connection Setting for eConnectionPolicy
 	 * == ANY (Used by Assoc Req)
 	 */
@@ -1332,10 +1339,13 @@ void aisFsmSteps(IN struct ADAPTER *prAdapter, enum ENUM_AIS_STATE eNextState)
 					       "Roaming retry :%d fail!\n",
 					       prAisFsmInfo->ucConnTrialCount);
 					/*add for fos roaming metrics*/
-					if (prBssDesc->u2JoinStatus == STATUS_CODE_AUTH_TIMEOUT)
-						prRoamingFsmInfo->eRoamingStatus = ROAMING_AUTH_FAIL;
-					else
-						prRoamingFsmInfo->eRoamingStatus = ROAMING_ASSOC_FAIL;
+					if (prBssDesc) {
+						if (prBssDesc->u2JoinStatus == STATUS_CODE_AUTH_TIMEOUT)
+							prRoamingFsmInfo->eRoamingStatus = ROAMING_AUTH_FAIL;
+						else
+							prRoamingFsmInfo->eRoamingStatus = ROAMING_ASSOC_FAIL;
+					} else
+						prRoamingFsmInfo->eRoamingStatus = ROAMING_CURRENT_IS_BEST;
 					roamingFsmRunEventFail(prAdapter,
 					ROAMING_FAIL_REASON_CONNLIMIT);
 #endif /* CFG_SUPPORT_ROAMING */
@@ -2948,6 +2958,8 @@ void aisNotifyAutoReconnectMetic(IN struct BSS_INFO *prAisBssInfo,
 	uint8_t metadata1;
 	uint16_t metadata2;
 	int ret = -1;
+	int minerva_ret = -1;
+	uint8_t metadata_str2[128];
 
 	DEBUGFUNC("aisNotifyAutoReconnectMetic()");
 	if (prAisBssInfo == NULL || prStaRec == NULL) {
@@ -2960,15 +2972,21 @@ void aisNotifyAutoReconnectMetic(IN struct BSS_INFO *prAisBssInfo,
 	metadata1 = prAisBssInfo->ucPrimaryChannel;
 	metadata2 = prStaRec->u2ReasonCode;
 	kalMemSet(metadata_str, 0x00, 128);
+	kalMemSet(metadata_str2, 0x00, 128);
 	if (bConnect == TRUE) {
 		key_str [0]= 'S';
 		sprintf(metadata_str,
 			"!{\"d\"#{\"metadata\"#\"%d\"$\"metadata1\"#\"%d\"}}", metadata, metadata1);
+		sprintf(metadata_str2,
+			"metadata=%d;SY,metadata1=%d;SY:", metadata, metadata1);
 	}
 	else {
 		key_str [0]= 'F';
 		sprintf(metadata_str,
 			"!{\"d\"#{\"metadata\"#\"%d\"$\"metadata1\"#\"%d\"$\"metadata2\"#\"%d\"}}",
+			metadata, metadata1, metadata2);
+		sprintf(metadata_str2,
+			"metadata=%d;SY,metadata1=%d;SY,metadata2=%d;SY:",
 			metadata, metadata1, metadata2);
 	}
 
@@ -2978,7 +2996,12 @@ void aisNotifyAutoReconnectMetic(IN struct BSS_INFO *prAisBssInfo,
 	if (ret)
 		DBGLOG(AIS, ERROR,
 			"log_counter_to_vitals fail: auto reconnect reason = %d %d\n",
-			metadata,ret);
+			metadata, ret);
+	minerva_ret = minerva_log_counter_to_vitals(ANDROID_LOG_INFO, "conn-num-autoreconnects", key_str, 1, metadata_str2);
+	if (minerva_ret)
+		DBGLOG(AIS, ERROR,
+			"minerva_log_counter_to_vitals fail: auto reconnect reason = %d %d\n",
+			metadata, minerva_ret);
 }
 #endif
 
@@ -3741,6 +3764,9 @@ aisIndicationOfMediaStateToHost(IN struct ADAPTER *prAdapter,
 		if (eConnectionState == PARAM_MEDIA_STATE_CONNECTED) {
 			rEventConnStatus.ucReasonOfDisconnect =
 			    DISCONNECT_REASON_CODE_RESERVED;
+#if CFG_SUPPORT_RSSI_STATISTICS
+			prAdapter->ucAisConnectionStatus = PARAM_AIS_STATE_CONNECTED;
+#endif
 
 			if (prAisBssInfo->eCurrentOPMode ==
 			    OP_MODE_INFRASTRUCTURE) {
@@ -3819,6 +3845,9 @@ aisIndicationOfMediaStateToHost(IN struct ADAPTER *prAdapter,
 			}
 			prAisFsmInfo->prTargetBssDesc = NULL;
 			prAisFsmInfo->prTargetStaRec = NULL;
+#if CFG_SUPPORT_RSSI_STATISTICS
+			prAdapter->ucAisConnectionStatus = PARAM_AIS_STATE_DISCONNECTED;
+#endif
 		}
 	} else {
 		/* NOTE: Only delay the Indication of Disconnect Event */

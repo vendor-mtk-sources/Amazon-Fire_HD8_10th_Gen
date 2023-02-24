@@ -1851,6 +1851,16 @@ nicTxComposeDesc(IN struct ADAPTER *prAdapter,
 	if (prChipInfo->workAround & BIT(
 		    WORKAROUND_MT7663_BRINGUP_20171205))
 		HAL_MAC_TX_DESC_SET_SPE_IDX(prTxDesc, 0x18);
+	if(prMsduInfo->fgIs802_1x) {
+		if(prAdapter->fgIsTest1xTx == 2) {
+			DBGLOG(RSN, STATE,
+				"%s: (fgIsTest1xTx == 2) test 1XTX frame stuck in queue\n",
+				__func__);
+			HAL_MAC_TX_DESC_SET_FR_RATE(prTxDesc, 0xff);
+			HAL_MAC_TX_DESC_SET_FIXED_RATE_MODE_TO_DESC(prTxDesc);
+			HAL_MAC_TX_DESC_SET_FIXED_RATE_ENABLE(prTxDesc);
+		}
+	}
 
 }
 

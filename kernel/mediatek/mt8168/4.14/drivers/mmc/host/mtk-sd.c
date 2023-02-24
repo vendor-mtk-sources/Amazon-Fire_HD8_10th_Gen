@@ -2967,10 +2967,14 @@ static int msdc_sys_suspend(struct device *dev)
 
 static int msdc_sys_resume(struct device *dev)
 {
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct msdc_host *host =  mmc_priv(mmc);
 	int ret = pinctrl_pm_select_default_state(dev);
 
 	if (ret)
 		return ret;
+	if (host != NULL)
+		host->pc_suspend++;
 
 	return pm_runtime_force_resume(dev);
 }

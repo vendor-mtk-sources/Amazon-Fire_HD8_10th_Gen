@@ -85,6 +85,9 @@
  *******************************************************************************
  */
 #define RX_RESPONSE_TIMEOUT (3000)
+#ifdef BUILD_QA_DBG
+extern  enum UT_TRIGGER_CHIP_RESET trChipReset;
+#endif
 
 
 /*******************************************************************************
@@ -385,8 +388,17 @@ static void halDriverOwnTimeout(struct ADAPTER *prAdapter,
 		       LP_OWN_BACK_FAILED_LOG_SKIP_MS);
 
 		prAdapter->u4OwnFailedLogCount++;
+
+#ifdef BUILD_QA_DBG
+		if ((trChipReset == TRIGGER_RESET_LP_OWN_BACK_FAILED) ||
+			(prAdapter->u4OwnFailedLogCount >
+		    LP_OWN_BACK_FAILED_RESET_CNT))
+#else
+
 		if (prAdapter->u4OwnFailedLogCount >
-		    LP_OWN_BACK_FAILED_RESET_CNT) {
+		    LP_OWN_BACK_FAILED_RESET_CNT)
+#endif
+		{
 			halShowHostCsrInfo(prAdapter);
 #if CFG_CHIP_RESET_SUPPORT
 			/* Trigger RESET */
@@ -448,7 +460,15 @@ u_int8_t halSetDriverOwn(IN struct ADAPTER *prAdapter)
 
 		fgTimeout = ((kalGetTimeTick() - u4CurrTick) >
 			     LP_OWN_BACK_TOTAL_DELAY_MS) ? TRUE : FALSE;
-
+#ifdef BUILD_QA_DBG
+		if (trChipReset == TRIGGER_RESET_LP_OWN_BACK_FAILED) {
+			fgTimeout = TRUE;
+			i = LP_OWN_BACK_FAILED_RETRY_CNT + 1;
+			fgResult = FALSE;
+			u4CurrTick = prAdapter->rLastOwnFailedLogTime + LP_OWN_BACK_FAILED_LOG_SKIP_MS + 100;
+			DBGLOG(INIT, ERROR, "Start chip reset =%d\n", trChipReset);
+		}
+#endif
 		if (fgResult) {
 			/* Check WPDMA FW own interrupt status and clear */
 			if (prBusInfo->fgCheckDriverOwnInt)

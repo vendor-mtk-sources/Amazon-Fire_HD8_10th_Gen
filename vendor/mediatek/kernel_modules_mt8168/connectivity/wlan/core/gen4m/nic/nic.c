@@ -72,6 +72,9 @@
  *******************************************************************************
  */
 #include "precomp.h"
+#ifdef BUILD_QA_DBG
+extern  enum UT_TRIGGER_CHIP_RESET trChipReset;
+#endif
 
 /*******************************************************************************
  *                              C O N S T A N T S
@@ -536,6 +539,12 @@ uint32_t nicProcessIST_impl(IN struct ADAPTER *prAdapter,
 
 	prAdapter->u4IntStatus = u4IntStatus;
 
+#ifdef BUILD_QA_DBG
+	if (trChipReset == TRIGGER_RESET_ABNORMAL_INT) {
+		prAdapter->u4IntStatus = WHISR_ABNORMAL_INT;
+		DBGLOG(NIC, ERROR,"trigger chip reset abnormal int %d \n",trChipReset);
+	}
+#endif
 	/* Process each of the interrupt status consequently */
 	prIntEventMap = &arIntEventMapTable[0];
 	for (u4IntCount = 0; u4IntCount < ucIntEventMapSize;

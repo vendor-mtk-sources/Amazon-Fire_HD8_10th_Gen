@@ -2407,6 +2407,7 @@ static const struct hid_device_id hid_have_special_driver[] = {
 #endif
 	{ HID_BLUETOOTH_DEVICE(BT_VENDOR_ID_LAB126, HID_ANY_ID) },
 	{ HID_USB_DEVICE(BT_VENDOR_ID_LAB126, HID_ANY_ID) },
+	{ HID_BLUETOOTH_DEVICE(BT_VENDOR_ID_LAB126, USB_DEVICE_ID_LAB126_KAWARTHA_KB) },
 	{ }
 };
 

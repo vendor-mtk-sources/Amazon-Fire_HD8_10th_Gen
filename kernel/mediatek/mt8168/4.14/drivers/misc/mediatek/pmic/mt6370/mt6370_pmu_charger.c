@@ -1496,10 +1496,13 @@ static int __mt6370_run_aicl(struct mt6370_pmu_charger_data *chg_data)
 	dev_info(chg_data->dev, "%s: aicc post val = %d\n", __func__, aicr);
 
 skip_post_aicl:
-	if (aicr > HW_AICL_ERROR_THRESHOLD_UA)
-		aicr -= chg_data->chg_desc->aicl_err_h;
-	else
-		aicr -= chg_data->chg_desc->aicl_err_l;
+	/* if aicr > 1A, error fix is applied */
+	if (aicr > 1000000) {
+		if (aicr > HW_AICL_ERROR_THRESHOLD_UA)
+			aicr -= chg_data->chg_desc->aicl_err_h;
+		else
+			aicr -= chg_data->chg_desc->aicl_err_l;
+	}
 
 	chg_data->aicr_limit = aicr;
 	dev_info(chg_data->dev, "%s: OK, aicr upper bound = %dmA\n", __func__,
@@ -3604,7 +3607,9 @@ static irqreturn_t mt6370_pmu_ovpctrl_uvp_d_evt_irq_handler(int irq, void *data)
 #ifdef CONFIG_FUSB251
 	fusb251_vbus_changed();
 #endif
-
+#if defined(CONFIG_AMZN_LD) || defined(CONFIG_MAX20342)
+	charger_dev_notify(chg_data->chg_dev, CHARGER_DEV_NOTIFY_VBUS_EVENT);
+#endif
 	/* Check UVP_D_STAT & OTG mode */
 	ret = mt6370_pmu_reg_test_bit(chg_data->chip,
 		MT6370_PMU_REG_OVPCTRLSTAT, MT6370_SHIFT_OVPCTRL_UVP_D_STAT,
@@ -3645,11 +3650,15 @@ static irqreturn_t mt6370_pmu_ovpctrl_uvp_d_evt_irq_handler(int irq, void *data)
 
 out:
 #else /* CONFIG_MT6370_PMU_CHARGER_TYPE_DETECT && !CONFIG_TCPC_CLASS */
+	struct mt6370_pmu_charger_data *chg_data =
+		 (struct mt6370_pmu_charger_data *)data;
 
 #ifdef CONFIG_FUSB251
 	fusb251_vbus_changed();
 #endif
-
+#if defined(CONFIG_AMZN_LD) || defined(CONFIG_MAX20342)
+	charger_dev_notify(chg_data->chg_dev, CHARGER_DEV_NOTIFY_VBUS_EVENT);
+#endif
 #endif /* CONFIG_MT6370_PMU_CHARGER_TYPE_DETECT && !CONFIG_TCPC_CLASS */
 
 	return IRQ_HANDLED;

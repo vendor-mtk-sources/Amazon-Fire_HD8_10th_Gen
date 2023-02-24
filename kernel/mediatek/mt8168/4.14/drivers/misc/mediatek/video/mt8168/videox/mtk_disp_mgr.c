@@ -1096,6 +1096,11 @@ static int _ioctl_wait_all_jobs_done(unsigned long arg)
 	struct frame_queue_head_t *head;
 	int ret = 0;
 
+	if (session_id > MAX_SESSION_COUNT - 1) {
+		DISPERR("%s error session_id=%d\n", __func__, session_id);
+		return -EINVAL;
+	}
+
 	head = get_frame_queue_head(session_id);
 	if (!head) {
 		disp_aee_print("%s:error to get frame queue!!\n", __func__);

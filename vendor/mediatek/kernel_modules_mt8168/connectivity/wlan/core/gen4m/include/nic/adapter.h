@@ -576,6 +576,12 @@ struct BSS_INFO {
 	uint8_t aucCountryStr[3];
 	uint8_t aucSubbandTriplet[253];
 	enum ENUM_IFTYPE eIftype;
+#if CFG_SUPPORT_DFS
+	struct TIMER rCsaTimer;
+	struct SWITCH_CH_AND_BAND_PARAMS CSAParams;
+	uint8_t fgHasStopTx;
+	uint8_t ucVhtChannelWidthBeforeCsa;
+#endif
 };
 
 /* Support AP Selection */
@@ -1028,7 +1034,7 @@ struct WIFI_VAR {
 
 	uint32_t u4MTU; /* net device maximum transmission unit */
 
-#if CFG_SUPPORT_IOT_AP_BLACKLIST
+#if CFG_SUPPORT_IOT_AP_BLOCKLIST
 	uint8_t fgEnDefaultIotApRule;
 #endif
 
@@ -1602,7 +1608,7 @@ struct ADAPTER {
 	struct REPORT_MISC_SET rReportMiscSet;
 #endif
 
-#if CFG_SUPPORT_IOT_AP_BLACKLIST
+#if CFG_SUPPORT_IOT_AP_BLOCKLIST
 	struct WLAN_IOT_AP_RULE_T rIotApRule[CFG_IOT_AP_RULE_MAX_CNT];
 #endif
 
@@ -1636,10 +1642,20 @@ struct ADAPTER {
 	uint32_t total_mgmtTX_timeout_count;
 	uint32_t total_mgmtRX_timeout_count;
 #endif
+#if CFG_SUPPORT_RSSI_STATISTICS
+	struct WIFI_RX_RSSI_STATISTICS arRxRssiStatistics;
+	uint32_t u4TxTotalPktNum;
+	uint32_t u4RxTotalPktNum;
+	uint32_t u4TxPktNum;
+	uint32_t u4RxPktNum;
+	uint8_t ucAisConnectionStatus;
+#endif
 #if CFG_SUPPORT_DTIM_SKIP
 	uint8_t ucDtimSkipCount;
 #endif /* fos_change end */
 	u_int8_t fgArpNoResponse;
+	enum ENUM_TX_RESULT_CODE r1xTxDoneStatus;
+	uint32_t fgIsTest1xTx;
 };				/* end of _ADAPTER_T */
 
 /*******************************************************************************

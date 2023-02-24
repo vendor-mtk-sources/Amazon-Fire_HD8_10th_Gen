@@ -931,7 +931,9 @@ void vcu_get_task(struct task_struct **task, struct files_struct **f,
 		files = NULL;
 	}
 
+	if (task)
 	*task = vcud_task;
+	if (f)
 	*f = files;
 }
 EXPORT_SYMBOL_GPL(vcu_get_task);
@@ -1021,8 +1023,9 @@ static int vcu_init_ipi_handler(void *data, unsigned int len, void *priv)
 
 			atomic_set(&vcu->vdec_log_got, 1);
 			wake_up(&vcu->vdec_log_get_wq);
-			vcud_task = NULL;
-			files = NULL;
+			vcu_get_file_lock();
+			vcu_get_task(NULL, NULL, 1);
+			vcu_put_file_lock();
 		}
 		dev_info(vcu->dev, "[VCU] vpud killed\n");
 
@@ -1052,9 +1055,17 @@ static int mtk_vcu_open(struct inode *inode, struct file *file)
 	else if (strcmp(current->comm, "mdpd") == 0)
 		vcuid = MTK_VCU_MDP;
 	else if (strcmp(current->comm, "vpud") == 0) {
-		vcud_task = current;
+		vcu_get_file_lock();
+		if (vcud_task &&
+			(current->tgid != vcud_task->tgid ||
+			current->group_leader != vcud_task->group_leader)) {
+			vcu_put_file_lock();
+			return -EACCES;
+		}
+		vcud_task = current->group_leader;
 		files = vcud_task->files;
-		vcuid = MTK_VCU_VCODEC;
+		vcu_put_file_lock();
+		vcuid = 0;
 
 	} else {
 		pr_debug("[VCU] thread name: %s\n", current->comm);
@@ -1070,16 +1081,16 @@ static int mtk_vcu_open(struct inode *inode, struct file *file)
 
 	vcu_ptr[vcuid]->open_cnt++;
 	vcu_ptr[vcuid]->abort = false;
-	pr_info("[VCU] %s name: %s pid %d open_cnt %d\n", __func__,
-		current->comm, current->tgid, vcu_ptr[vcuid]->open_cnt);
+
+	pr_info("[VCU] %s name: %s pid %d tgid %d open_cnt %d current %p group_leader %p\n",
+		__func__, current->comm, current->pid, current->tgid,
+		vcu_ptr[vcuid]->open_cnt, current, current->group_leader);
 
 	return 0;
 }
 
 static int mtk_vcu_release(struct inode *inode, struct file *file)
 {
-	struct task_struct *task = NULL;
-	struct files_struct *f = NULL;
 	struct mtk_vcu *vcu_dev;
 	int vcuid;
 	struct mtk_vcu_queue *vcu_queue =
@@ -1096,7 +1107,7 @@ static int mtk_vcu_release(struct inode *inode, struct file *file)
 		/* reset vpud due to abnormal situations. */
 		vcu_ptr[vcuid]->abort = true;
 		vcu_get_file_lock();
-		vcu_get_task(&task, &f, 1);
+		vcu_get_task(NULL, NULL, 1);
 		vcu_put_file_lock();
 	}
 	return 0;

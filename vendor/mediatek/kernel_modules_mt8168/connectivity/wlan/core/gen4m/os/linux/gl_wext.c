@@ -268,7 +268,10 @@ static const struct iw_priv_args rIwPrivTable[] = {
 	"get_dtim_skip"},
 #endif /* fos_change end */
 	{PRIV_CMD_GET_BAND_WIDTH, 0, IW_PRIV_TYPE_CHAR | 2000, "get_bandwidth"},/*fos change*/
-
+#if BUILD_QA_DBG
+	{PRIV_CMD_TRIGGER_CHIP_RESET, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0,
+	"ut_chip_reset"},
+#endif
 };
 
 static const iw_handler rIwPrivHandler[] = {

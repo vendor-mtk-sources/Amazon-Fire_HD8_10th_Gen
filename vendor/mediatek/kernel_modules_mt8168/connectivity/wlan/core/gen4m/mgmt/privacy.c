@@ -1319,6 +1319,7 @@ enum ENUM_EAPOL_KEY_TYPE_T secGetEapolKeyType(uint8_t *pucPkt)
 		u2KeyInfo = *((uint16_t *) (&pucEthBody[5]));
 		switch (u2KeyInfo) {
 		case 0x8a00:
+		case 0x8800:
 			return EAPOL_KEY_1_OF_4;
 		case 0x0a01:
 			return EAPOL_KEY_2_OF_4;
@@ -1336,9 +1337,35 @@ void secHandleRxEapolPacket(IN struct ADAPTER *prAdapter,
 			    IN struct SW_RFB *prRetSwRfb,
 			    IN struct STA_RECORD *prStaRec)
 {
+#if CFG_SUPPORT_RSSI_STATISTICS
+	enum ENUM_EAPOL_KEY_TYPE_T eEapolKeyType;
+	struct WLAN_MAC_HEADER *prWlanHeader = NULL;
+	struct HW_MAC_RX_STS_GROUP_4 *prRxStatusGroup4 = NULL;
+	uint16_t u2FrameCtrl;
+#endif
+
+
 	do {
 		if (prRetSwRfb->u2PacketLen <= ETHER_HEADER_LEN)
 			break;
+#if CFG_SUPPORT_RSSI_STATISTICS
+		if (HAL_RX_STATUS_IS_HEADER_TRAN(prRetSwRfb->prRxStatus) == FALSE) {
+			prWlanHeader = (struct WLAN_MAC_HEADER *) prRetSwRfb->pvHeader;
+			u2FrameCtrl = prWlanHeader->u2FrameCtrl;
+		} else {
+			prRxStatusGroup4 = prRetSwRfb->prRxStatusGroup4;
+			if (prRxStatusGroup4)
+				u2FrameCtrl = HAL_RX_STATUS_GET_FRAME_CTL_FIELD(prRxStatusGroup4);
+			else
+				DBGLOG(RX, WARN, "prRxStatusGroup4 is NULL\n");
+		}
+
+		eEapolKeyType =  secGetEapolKeyType((uint8_t *) prRetSwRfb->pvHeader);
+		if (eEapolKeyType == EAPOL_KEY_1_OF_4) {
+			prAdapter->arRxRssiStatistics.ucM1Rcpi = nicRxGetRcpiValueFromRxv(RCPI_MODE_MAX, prRetSwRfb);
+			prAdapter->arRxRssiStatistics.ucM1Retransmission = (u2FrameCtrl & MASK_FC_RETRY);
+		}
+#endif
 		if (secGetEapolKeyType((uint8_t *) prRetSwRfb->pvHeader) !=
 				EAPOL_KEY_3_OF_4)
 			break;

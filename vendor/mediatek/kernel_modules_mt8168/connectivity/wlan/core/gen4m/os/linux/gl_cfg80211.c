@@ -3346,7 +3346,12 @@ static int mtk_wlan_cfg_testmode_cmd(struct wiphy *wiphy,
 		i4Status = mtk_cfg80211_process_str_cmd(prGlueInfo,
 			(uint8_t *)(prParams + 1), len - sizeof(*prParams));
 		break;
-
+#if CFG_SUPPORT_RSSI_STATISTICS
+	case TESTMODE_RSSI_STATISTICS:
+		i4Status = mtk_cfg80211_testmode_get_rssi_statistics(wiphy,
+				data, len, prGlueInfo);
+		break;
+#endif
 	default:
 		i4Status = -EINVAL;
 		break;
@@ -6604,5 +6609,136 @@ const uint8_t *mtk_cfg80211_find_ie_match_mask(uint8_t eid,
 	}
 	return NULL;
 }
+#if CFG_SUPPORT_RSSI_STATISTICS
+int
+mtk_cfg80211_testmode_get_rssi_statistics(IN struct wiphy
+		*wiphy, IN void *data, IN int len,
+		IN struct GLUE_INFO *prGlueInfo)
+{
+	uint32_t rStatus = WLAN_STATUS_SUCCESS;
+	struct PARAM_GET_RSSI_STATISTICS rQueryRssiStatistics;
+
+	struct NL80211_DRIVER_GET_RSSI_STATISTICS_PARAMS *prParams = NULL;
+	struct sk_buff *skb;
+	uint8_t ucData = 0;
+	uint32_t u4BufLen = 0;
+	uint32_t u4Data = 0;
+
+	ASSERT(wiphy);
+	ASSERT(prGlueInfo);
+
+	DBGLOG(QM, TRACE, "mtk_cfg80211_testmode_get_rssi_statistics\n");
+
+	if (!data || !len) {
+		DBGLOG(QM, ERROR, "data or len is invalid len=%d\n", len);
+		return -EINVAL;
+	}
+
+	prParams = (struct NL80211_DRIVER_GET_RSSI_STATISTICS_PARAMS
+			    *) data;
+	if (prParams == NULL) {
+		DBGLOG(QM, ERROR, "prParams is NULL, data=%p, len=%d\n",
+		       data, len);
+		return -EINVAL;
+	}
+
+	skb = cfg80211_testmode_alloc_reply_skb(wiphy,
+				sizeof(struct PARAM_GET_RSSI_STATISTICS) + 1);
+	if (!skb) {
+		DBGLOG(QM, ERROR, "allocate skb failed:%x\n", rStatus);
+		return -ENOMEM;
+	}
+
+	kalMemZero(&rQueryRssiStatistics,
+		   sizeof(rQueryRssiStatistics));
+
+	rStatus = kalIoctl(prGlueInfo, wlanoidQueryRssiStatistics,
+				   &rQueryRssiStatistics,
+				   sizeof(rQueryRssiStatistics),
+				   TRUE, FALSE, FALSE, &u4BufLen);
+
+	if (rStatus != WLAN_STATUS_SUCCESS) {
+		DBGLOG(OID, INFO, "Query Rssi statistics failed\n");
+		goto nla_put_failure;
+	}
 
 
+	ucData = rQueryRssiStatistics.arRxRssiStatistics.ucAssocRcpi;
+	if (unlikely(nla_put(skb,
+		NL80211_TESTMODE_ASS_RCPI_STATISTICS, sizeof(u8),
+		&ucData) < 0)) {
+		DBGLOG(QM, ERROR, "put assoc rssi fail\n");
+		goto nla_put_failure;
+	}
+	ucData = rQueryRssiStatistics.arRxRssiStatistics.ucAssocRetransmission;
+	if (unlikely(nla_put(skb,
+		NL80211_TESTMODE_ASS_RETRANMISSION_STATISTICS, sizeof(u8),
+		&ucData) < 0)) {
+		DBGLOG(QM, ERROR, "put assoc retransmission flag fail\n");
+		goto nla_put_failure;
+	}
+
+	ucData = rQueryRssiStatistics.arRxRssiStatistics.ucAuthRcpi;
+	if (unlikely(nla_put(skb,
+		    NL80211_TESTMODE_AUTH_RCPI_STATISTICS, sizeof(u8),
+		    &ucData) < 0)) {
+			DBGLOG(QM, ERROR, "put auth rssi fail\n");
+			goto nla_put_failure;
+	}
+	ucData = rQueryRssiStatistics.arRxRssiStatistics.ucAuthRetransmission;
+	if (unlikely(nla_put(skb,
+		    NL80211_TESTMODE_AUTH_RETRANMISSION_STATISTICS, sizeof(u8),
+		    &ucData) < 0)) {
+			DBGLOG(QM, ERROR, "put auth retransmission flag fail\n");
+			goto nla_put_failure;
+	}
+
+	ucData = rQueryRssiStatistics.arRxRssiStatistics.ucM1Rcpi;
+	if (unlikely(nla_put(skb,
+		    NL80211_TESTMODE_EAPOL_RCPI_STATISTICS, sizeof(u8),
+		    &ucData) < 0)) {
+			DBGLOG(QM, ERROR, "put eapol rssi fail\n");
+			goto nla_put_failure;
+	}
+	ucData = rQueryRssiStatistics.arRxRssiStatistics.ucM1Retransmission;
+	if (unlikely(nla_put(skb,
+		    NL80211_TESTMODE_EAPOL_RETRANMISSION_STATISTICS, sizeof(u8),
+		    &ucData) < 0)) {
+			DBGLOG(QM, ERROR, "put eapol retransmission flag fail\n");
+			goto nla_put_failure;
+	}
+
+	ucData = rQueryRssiStatistics.ucAisConnectionStatus;
+	if (unlikely(nla_put(skb,
+		    NL80211_TESTMODE_AIS_CONNECTION_STATISTICS, sizeof(u8),
+		    &ucData) < 0)) {
+			DBGLOG(QM, ERROR, "put ais connection status fail\n");
+			goto nla_put_failure;
+	}
+
+	u4Data = rQueryRssiStatistics.u4TxPktNum;
+	if (unlikely(nla_put(skb,
+		    NL80211_TESTMODE_TX_COUNT_STATISTICS, sizeof(u32),
+		    &u4Data) < 0)) {
+			DBGLOG(QM, ERROR, "put TX count fail\n");
+			goto nla_put_failure;
+	}
+
+	u4Data = rQueryRssiStatistics.u4RxPktNum;
+	DBGLOG(QM, TRACE, "put Rx count ucData= %d, RxPktNum =%d\n",u4Data, rQueryRssiStatistics.u4RxPktNum);
+	if (unlikely(nla_put(skb,
+		    NL80211_TESTMODE_RX_COUNT_STATISTICS, sizeof(u32),
+		    &u4Data) < 0)) {
+			DBGLOG(QM, ERROR, "put Rx count fail\n");
+			goto nla_put_failure;
+	}
+
+	return cfg80211_testmode_reply(skb);
+nla_put_failure:
+	/* nal_put_skb_fail */
+	kfree_skb(skb);
+
+	return -EFAULT;
+}
+
+#endif

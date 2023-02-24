@@ -218,6 +218,10 @@
 /* 802.3 Objects (Ethernet) */
 #define OID_802_3_CURRENT_ADDRESS           0x01010102
 
+#ifdef BUILD_QA_DBG
+#define PRIV_CMD_TRIGGER_CHIP_RESET   50
+#endif
+
 /* IEEE 802.11 OIDs */
 #define OID_802_11_SUPPORTED_RATES              0x0D01020E
 #define OID_802_11_CONFIGURATION                0x0D010211

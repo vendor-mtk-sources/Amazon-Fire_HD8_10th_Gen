@@ -16589,10 +16589,10 @@ wlanoidSetAntennaSwitchScenario(IN struct ADAPTER *prAdapter,
 	DBGLOG(REQ, LOUD, "antenna switch timer[%u] key [%u]\n", rCmdAntennaSwitch.u4Time, rCmdAntennaSwitch.ucAction);
 	rWlanStatus = wlanSendSetQueryCmd(prAdapter,
 		CMD_ID_SET_ANTENNA_SWITCH_TIMER,
-		FALSE,
+		TRUE,
 		FALSE,
 		TRUE,
-		NULL,
+		nicCmdEventSetCommon,
 		nicOidCmdTimeoutCommon,
 		sizeof(struct CMD_FW_SET_ANTENNA_SWITCH_SCENARIO),
 		(uint8_t *) &rCmdAntennaSwitch, pvSetBuffer, u4SetBufferLen);
@@ -16630,5 +16630,70 @@ wlanoidQueryAntSwitchData(IN struct ADAPTER *prAdapter,
 				   (uint8_t *)prAntSwitchInfo,
 				   pvQueryBuffer, u4QueryBufferLen);
 }
+#endif
+
+#if CFG_SUPPORT_RSSI_STATISTICS
+uint32_t
+wlanoidQueryRssiStatistics(IN struct ADAPTER *prAdapter,
+		 OUT void *pvQueryBuffer, IN uint32_t u4QueryBufferLen,
+		 OUT uint32_t *pu4QueryInfoLen)
+{
+	uint32_t rStatus = WLAN_STATUS_SUCCESS;
+	struct PARAM_GET_RSSI_STATISTICS *prQueryRssiStatistics;
+
+	DEBUGFUNC("wlanoidQueryRssiStatistics");
+
+	ASSERT(prAdapter);
+	do {
+
+		/* 4 1. Sanity test */
+		if (pu4QueryInfoLen == NULL ||
+			((u4QueryBufferLen) && (pvQueryBuffer == NULL))) {
+			rStatus = WLAN_STATUS_FAILURE;
+			break;
+		}
+
+		if (u4QueryBufferLen <
+		    sizeof(struct PARAM_GET_RSSI_STATISTICS)) {
+			*pu4QueryInfoLen =
+					sizeof(struct PARAM_GET_RSSI_STATISTICS);
+			rStatus = WLAN_STATUS_BUFFER_TOO_SHORT;
+			break;
+		}
+
+		prQueryRssiStatistics = (struct PARAM_GET_RSSI_STATISTICS *)
+				       pvQueryBuffer;
+		if (prAdapter->prAisBssInfo == NULL) {
+			DBGLOG(REQ, ERROR, "prAdapter->prAisBssInfo is Null break\n");
+			rStatus = WLAN_STATUS_FAILURE;
+			break;
+		}
+
+		prQueryRssiStatistics->arRxRssiStatistics.ucAuthRcpi = prAdapter->arRxRssiStatistics.ucAuthRcpi;
+		prQueryRssiStatistics->arRxRssiStatistics.ucAuthRetransmission = prAdapter->arRxRssiStatistics.ucAuthRetransmission;
+		prQueryRssiStatistics->arRxRssiStatistics.ucAssocRcpi = prAdapter->arRxRssiStatistics.ucAssocRcpi;
+		prQueryRssiStatistics->arRxRssiStatistics.ucAssocRetransmission = prAdapter->arRxRssiStatistics.ucAssocRetransmission;
+		prQueryRssiStatistics->arRxRssiStatistics.ucM1Rcpi = prAdapter->arRxRssiStatistics.ucM1Rcpi;
+		prQueryRssiStatistics->arRxRssiStatistics.ucM1Retransmission = prAdapter->arRxRssiStatistics.ucM1Retransmission;
+		prQueryRssiStatistics->ucAisConnectionStatus = prAdapter->ucAisConnectionStatus;
+		prQueryRssiStatistics->u4RxPktNum = prAdapter->u4RxPktNum;
+		prQueryRssiStatistics->u4TxPktNum = prAdapter->u4TxPktNum;
+
+		DBGLOG(REQ, TRACE, "dump rssi statistics info  [%d,%d],[%d,%d],[%d,%d],[%d,%d,%d]\n",
+			prQueryRssiStatistics->arRxRssiStatistics.ucAuthRcpi,
+			prQueryRssiStatistics->arRxRssiStatistics.ucAuthRetransmission,
+			prQueryRssiStatistics->arRxRssiStatistics.ucAssocRcpi,
+			prQueryRssiStatistics->arRxRssiStatistics.ucAssocRetransmission,
+			prQueryRssiStatistics->arRxRssiStatistics.ucAssocRcpi,
+			prQueryRssiStatistics->arRxRssiStatistics.ucM1Retransmission,
+			prQueryRssiStatistics->ucAisConnectionStatus,
+			prQueryRssiStatistics->u4RxPktNum,
+			prQueryRssiStatistics->u4TxPktNum);
+
+		if (rStatus != WLAN_STATUS_SUCCESS && rStatus != WLAN_STATUS_PENDING)
+			DBGLOG(REQ, ERROR, "Failed with status %d\n", rStatus);
+	}while (FALSE);
+	return rStatus;
+} /* end of wlanoidQueryRssi() */
 #endif
 

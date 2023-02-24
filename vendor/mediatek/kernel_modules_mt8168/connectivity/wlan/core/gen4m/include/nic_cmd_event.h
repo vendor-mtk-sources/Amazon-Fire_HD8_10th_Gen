@@ -587,6 +587,9 @@ enum ENUM_CMD_ID {
 	CMD_ID_MIB_INFO		= 0xCE, /* 0xce (Query) */
 
 	CMD_ID_SET_RDD_CH = 0xE1,
+#if CFG_SUPPORT_RSSI_STATISTICS
+	CMD_ID_GET_TX_RX_COUNT =0xEA,
+#endif
 
 #if CFG_SUPPORT_QA_TOOL
 	/* magic number for Extending MT6630 original CMD header */
@@ -710,6 +713,9 @@ enum ENUM_EVENT_ID {
 
 	EVENT_ID_WLAN_INFO = 0xCD,
 	EVENT_ID_MIB_INFO = 0xCE,
+#if CFG_SUPPORT_RSSI_STATISTICS
+	EVENT_ID_GET_TX_RX_COUINT = 0xEA,
+#endif
 
 	/* 0xEC (Query - CMD_ID_GET_NIC_CAPABILITY_V2) */
 	EVENT_ID_NIC_CAPABILITY_V2 = 0xEC,
@@ -3724,6 +3730,13 @@ struct EVENT_FW_ACTIVE_TIME_STATISTICS {
 };
 #endif
 
+#if CFG_SUPPORT_RSSI_STATISTICS
+struct EVENT_TX_RX_INFO {
+	uint32_t u4TxPktNum;
+	uint32_t u4RxPktNum;
+};
+#endif
+
 /*******************************************************************************
  *                            P U B L I C   D A T A
  *******************************************************************************
@@ -4035,6 +4048,10 @@ void nicCmdEventQueryAntSwapMetrics(IN struct ADAPTER *prAdapter,
 void nicCmdEventGetFwActiveTimeStatistics(IN struct ADAPTER *prAdapter,
 	IN struct CMD_INFO *prCmdInfo,
 	IN uint8_t *pucEventBuf);
+#endif
+#if CFG_SUPPORT_RSSI_STATISTICS
+void nicCmdEventRecordTxRxCount(IN struct ADAPTER *prAdapter,
+	IN struct CMD_INFO *prCmdInfo, IN uint8_t *pucEventBuf);
 #endif
 /*******************************************************************************
  *                              F U N C T I O N S

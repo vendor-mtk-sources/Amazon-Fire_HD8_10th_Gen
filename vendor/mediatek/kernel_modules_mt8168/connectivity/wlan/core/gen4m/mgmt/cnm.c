@@ -1997,6 +1997,17 @@ struct BSS_INFO *cnmGetBssInfoAndInit(struct ADAPTER *prAdapter,
 			prBssInfo->wepkeyUsed[i] = FALSE;
 		}
 	}
+#if CFG_SUPPORT_DFS
+	if (prBssInfo) {
+		cnmTimerInitTimer(prAdapter,
+			&prBssInfo->rCsaTimer,
+			(PFN_MGMT_TIMEOUT_FUNC) rlmCsaTimeout,
+			(unsigned long)ucBssIndex);
+		rlmResetCSAParams(prBssInfo);
+		prBssInfo->fgHasStopTx = FALSE;
+	}
+#endif
+
 	return prBssInfo;
 }
 
@@ -2015,6 +2026,10 @@ void cnmFreeBssInfo(struct ADAPTER *prAdapter,
 {
 	ASSERT(prAdapter);
 	ASSERT(prBssInfo);
+
+#if CFG_SUPPORT_DFS
+	cnmTimerStopTimer(prAdapter, &prBssInfo->rCsaTimer);
+#endif
 
 	prBssInfo->fgIsInUse = FALSE;
 }

@@ -76,6 +76,10 @@
 #include "precomp.h"
 #include "gl_rst.h"
 
+#ifdef BUILD_QA_DBG
+extern  enum UT_TRIGGER_CHIP_RESET trChipReset;
+#endif
+
 #if CFG_CHIP_RESET_SUPPORT
 
 /*******************************************************************************
@@ -311,6 +315,9 @@ u_int8_t glResetTrigger(struct ADAPTER *prAdapter,
 	ASSERT(prAdapter);
 	u2FwOwnVersion = prAdapter->rVerInfo.u2FwOwnVersion;
 	u2FwPeerVersion = prAdapter->rVerInfo.u2FwPeerVersion;
+#ifdef BUILD_QA_DBG
+	trChipReset = TRIGGER_RESET_START;
+#endif
 	if (!kalIsResetting()) {
 		DBGLOG(INIT, ERROR,
 		       "Trigger chip reset in %s line %u! Chip[%04X E%u] FW Ver DEC[%u.%u] HEX[%x.%x], Driver Ver[%u.%u]\n",

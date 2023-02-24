@@ -5262,3 +5262,45 @@ void nicCmdEventGetFwActiveTimeStatistics(IN struct ADAPTER *prAdapter,
 	}
 }
 #endif
+
+#if CFG_SUPPORT_RSSI_STATISTICS
+void nicCmdEventRecordTxRxCount(IN struct ADAPTER *prAdapter,
+	IN struct CMD_INFO *prCmdInfo, IN uint8_t *pucEventBuf)
+{
+	struct EVENT_TX_RX_INFO *prEvent;
+	struct PARAM_GET_RSSI_STATISTICS *prQueryRssiStatistics;
+	uint32_t u4TxPktNum;
+	uint32_t u4RxPktNum;
+
+	ASSERT(prAdapter);
+	ASSERT(prCmdInfo);
+	ASSERT(pucEventBuf);
+
+	prEvent = (struct EVENT_TX_RX_INFO *)pucEventBuf;
+	DBGLOG(REQ, LOUD, "nicCmdEventRecordTxRxCount prAdapter->u4TxUcTotalPktNum= %d, prAdapter->u4RxUcTotalPktNum =%d\n", prAdapter->u4TxTotalPktNum, prAdapter->u4RxTotalPktNum);
+
+	if (prCmdInfo->pvInformationBuffer)
+		prQueryRssiStatistics = (struct PARAM_GET_RSSI_STATISTICS *)
+				  prCmdInfo->pvInformationBuffer;
+	/* get Tx/Rx packet count */
+	u4TxPktNum = (prEvent->u4TxPktNum > prAdapter->u4TxTotalPktNum) ? (prEvent->u4TxPktNum - prAdapter->u4TxTotalPktNum) : 0;
+	u4RxPktNum = (prEvent->u4RxPktNum > prAdapter->u4RxTotalPktNum) ? (prEvent->u4RxPktNum - prAdapter->u4RxTotalPktNum) : 0;
+
+	prAdapter->u4TxPktNum = u4TxPktNum;
+	prAdapter->u4RxPktNum = u4RxPktNum;
+	prAdapter->u4TxTotalPktNum = prEvent->u4TxPktNum;
+	prAdapter->u4RxTotalPktNum = prEvent->u4RxPktNum;
+	if (prCmdInfo->pvInformationBuffer) {
+		prQueryRssiStatistics->u4TxPktNum = prAdapter->u4TxPktNum;
+		prQueryRssiStatistics->u4RxPktNum = prAdapter->u4RxPktNum;
+	}
+
+	DBGLOG(REQ, LOUD, "nicCmdEventRecordTxRxCount u4RxPktNum= %d, prEvent->u4RxPktNum =%d\n", u4RxPktNum, prEvent->u4RxPktNum);
+	if (prCmdInfo->fgIsOid) {
+		DBGLOG(REQ, LOUD, "cmdinfo->flgIsoid\n");
+		kalOidComplete(prAdapter->prGlueInfo, prCmdInfo->fgSetQuery,
+			       sizeof(struct PARAM_RX_TX_COUNT),
+			       WLAN_STATUS_SUCCESS);
+	}
+}
+#endif

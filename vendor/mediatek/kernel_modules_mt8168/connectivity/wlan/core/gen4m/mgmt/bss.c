@@ -2408,7 +2408,7 @@ int8_t bssGetRxNss(IN struct ADAPTER *prAdapter,
 
 	return ucBssNss;
 }
-#if CFG_SUPPORT_IOT_AP_BLACKLIST
+#if CFG_SUPPORT_IOT_AP_BLOCKLIST
 /*----------------------------------------------------------------------------*/
 /*!
  * @brief get IOT AP handle action.

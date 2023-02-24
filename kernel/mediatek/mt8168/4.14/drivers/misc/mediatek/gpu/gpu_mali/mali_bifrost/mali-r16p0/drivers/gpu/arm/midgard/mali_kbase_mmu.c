@@ -230,7 +230,7 @@ static void kbase_gpu_mmu_handle_write_fault(struct kbase_context *kctx,
 	/* Find region and check if it should be writable. */
 	region = kbase_region_tracker_find_region_enclosing_address(kctx,
 			fault->addr);
-	if (!region || region->flags & KBASE_REG_FREE) {
+	if (kbase_is_region_invalid_or_free(region)) {
 		kbase_gpu_vm_unlock(kctx);
 		kbase_mmu_report_fault_and_kill(kctx, faulting_as,
 				"Memory is not mapped on the GPU",
@@ -637,7 +637,7 @@ page_fault_retry:
 
 	region = kbase_region_tracker_find_region_enclosing_address(kctx,
 			fault->addr);
-	if (!region || region->flags & KBASE_REG_FREE) {
+	if (kbase_is_region_invalid_or_free(region)) {
 		kbase_gpu_vm_unlock(kctx);
 		kbase_mmu_report_fault_and_kill(kctx, faulting_as,
 				"Memory is not mapped on the GPU", fault);
@@ -2360,6 +2360,7 @@ static void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx,
 		kctx->pid);
 
 	/* hardware counters dump fault handling */
+	spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 	if ((kbdev->hwcnt.kctx) && (kbdev->hwcnt.kctx->as_nr == as_no) &&
 			(kbdev->hwcnt.backend.state ==
 						KBASE_INSTR_STATE_DUMPING)) {
@@ -2368,6 +2369,7 @@ static void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx,
 					kbdev->hwcnt.addr_bytes)))
 			kbdev->hwcnt.backend.state = KBASE_INSTR_STATE_FAULT;
 	}
+	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 
 	/* Stop the kctx from submitting more jobs and cause it to be scheduled
 	 * out/rescheduled - this will occur on releasing the context's refcount */
@@ -2566,6 +2568,7 @@ void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
 		struct kbase_fault *fault)
 {
 	struct kbasep_js_device_data *js_devdata = &kbdev->js_data;
+	unsigned long flags;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
@@ -2612,11 +2615,13 @@ void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
 		 * hw counters dumping in progress, signal the
 		 * other thread that it failed
 		 */
+		spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 		if ((kbdev->hwcnt.kctx == kctx) &&
 		    (kbdev->hwcnt.backend.state ==
 					KBASE_INSTR_STATE_DUMPING))
 			kbdev->hwcnt.backend.state =
 						KBASE_INSTR_STATE_FAULT;
+		spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 
 		/*
 		 * Stop the kctx from submitting more jobs and cause it

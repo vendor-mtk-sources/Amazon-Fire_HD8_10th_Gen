@@ -305,6 +305,14 @@
 #define CMD_GET_ANT_SWITCH_METRICS  "get_fw_ant_switch_metrics"
 #endif
 
+#define CMD_GET_1XTX_STATUS     "GET_1XTX_STATUS"
+#define CMD_TEST_1XTX_STATUS    "TEST_1XTX_STATUS"
+
+
+#ifdef BUILD_QA_DBG
+enum UT_TRIGGER_CHIP_RESET trChipReset = TRIGGER_RESET_START;
+#endif
+
 static uint8_t g_ucMiracastMode = MIRACAST_MODE_OFF;
 
 #if CFG_SUPPORT_WAKEUP_STATISTICS
@@ -1441,6 +1449,15 @@ __priv_set_int(IN struct net_device *prNetDev,
 			 FALSE, FALSE, TRUE, &u4BufLen);
 	}
 	break;
+
+#ifdef BUILD_QA_DBG
+	case PRIV_CMD_TRIGGER_CHIP_RESET:
+	{
+		trChipReset = (enum UT_TRIGGER_CHIP_RESET)pu4IntBuf[1];
+		DBGLOG(INIT, INFO, "chipReset = %d\n", trChipReset);
+	}
+	break;
+#endif/*fos add ut chip reset */
 
 	case PRIV_CMD_WMM_PS: {
 		struct PARAM_CUSTOM_WMM_PS_TEST_STRUCT rWmmPsTest;
@@ -14094,6 +14111,66 @@ static int priv_driver_wifi_on_time_statistics(IN struct net_device *prNetDev, I
 	return 0;
 }
 
+static int priv_driver_get_1xtx_status(IN struct net_device *prNetDev,
+	IN char *pcCommand, IN int i4TotalLen)
+{
+	struct GLUE_INFO *prGlueInfo = NULL;
+	struct ADAPTER *prAdapter = NULL;
+	int32_t  i4BytesWritten = 0;
+
+	DBGLOG(REQ, LOUD, "command is %s\n", pcCommand);
+	prGlueInfo = *((struct GLUE_INFO **) netdev_priv(prNetDev));
+	if (!prGlueInfo)
+		return -EFAULT;
+
+	prAdapter = prGlueInfo->prAdapter;
+	if (!prAdapter || !prAdapter->prAisBssInfo)
+		return -EFAULT;
+	LOGBUF(pcCommand, i4TotalLen, i4BytesWritten,
+		"r1xTxDoneStatus is %d\n",
+		prAdapter->r1xTxDoneStatus);
+
+	return i4BytesWritten;
+}
+static int priv_driver_test_1xtx_status(IN struct net_device *prNetDev,
+	IN char *pcCommand, IN int i4TotalLen)
+{
+	struct GLUE_INFO *prGlueInfo = NULL;
+	struct ADAPTER *prAdapter = NULL;
+	int32_t i4BytesWritten = 0;
+	int32_t i4Argc = 0;
+	int8_t *apcArgv[WLAN_CFG_ARGV_MAX] = { 0 };
+	int32_t i4Ret = 0;
+	uint16_t ucTest1xTxStatus;
+
+	DBGLOG(REQ, LOUD, "command is %s\n", pcCommand);
+	wlanCfgParseArgument(pcCommand, &i4Argc, apcArgv);
+	DBGLOG(REQ, LOUD, "i4Argc is %d\n", i4Argc);
+
+	if (i4Argc != 2) {
+		i4BytesWritten += scnprintf(pcCommand + i4BytesWritten,
+			i4TotalLen - i4BytesWritten,
+			"\nformat:test_1xtx_status [0|1]");
+		return i4BytesWritten;
+	}
+	i4Ret = kalkStrtou16(apcArgv[1], 0, &ucTest1xTxStatus);
+	if (i4Ret)
+		DBGLOG(REQ, ERROR, "parse test_1xtx_status error i4Ret=%d\n", i4Ret);
+	prGlueInfo = *((struct GLUE_INFO **) netdev_priv(prNetDev));
+	if (!prGlueInfo)
+		return -EFAULT;
+
+	prAdapter = prGlueInfo->prAdapter;
+
+	if (!prAdapter || !prAdapter->prAisBssInfo)
+		return -EFAULT;
+
+	prAdapter->fgIsTest1xTx = ucTest1xTxStatus;
+	DBGLOG(REQ, STATE, "set fgIsTest1xTx %d\n", prAdapter->fgIsTest1xTx);
+
+	return i4BytesWritten;
+}
+
 /*
 Operation: AntSwitch
 
@@ -14180,11 +14257,7 @@ static int priv_driver_set_ant_swap_interval(IN struct net_device *prNetDev, IN 
 	rStatus = kalIoctl(prGlueInfo, wlanoidSetAntennaSwitchScenario,
 					   &rCmdAntennaSwitch, sizeof(struct CMD_FW_SET_ANTENNA_SWITCH_SCENARIO),
 					   FALSE, FALSE, TRUE, &u4BufLen);
-	if (rStatus != WLAN_STATUS_SUCCESS) {
-		DBGLOG(REQ, WARN, "antenna switch timer set fail:%x\n", rStatus);
-		return -EINVAL;
-	}
-	return 0;
+	return WLAN_STATUS_SUCCESS;
 }
 
 static int priv_driver_get_antswap_metrics(IN struct net_device *prNetDev,
@@ -14393,6 +14466,8 @@ struct PRIV_CMD_HANDLER priv_cmd_handlers[] = {
 #if CFG_SUPPORT_ANTSWAP_MONITOR
 	{CMD_ANT_SWITCH_INTERVAL, priv_driver_set_ant_swap_interval},
 	{CMD_GET_ANT_SWITCH_METRICS, priv_driver_get_antswap_metrics},
+	{CMD_GET_1XTX_STATUS, priv_driver_get_1xtx_status},
+	{CMD_TEST_1XTX_STATUS, priv_driver_test_1xtx_status},
 #endif
 };
 

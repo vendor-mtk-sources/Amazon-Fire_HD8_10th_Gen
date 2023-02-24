@@ -83,6 +83,9 @@
 #endif
 
 #include "mt66xx_reg.h"
+#ifdef BUILD_QA_DBG
+extern  enum UT_TRIGGER_CHIP_RESET trChipReset;
+#endif
 
 /*******************************************************************************
  *                              C O N S T A N T S
@@ -203,7 +206,14 @@ u_int8_t kalDevRegRead(IN struct GLUE_INFO *prGlueInfo,
 	/* Static mapping */
 	if (halChipToStaticMapBusAddr(prGlueInfo, u4Register, &u4BusAddr)) {
 		RTMP_IO_READ32(prHifInfo, u4BusAddr, pu4Value);
-		if (kalIsChipDead(prGlueInfo, u4Register, pu4Value)) {
+#ifdef BUILD_QA_DBG
+		if ((kalIsChipDead(prGlueInfo, u4Register, pu4Value)) ||
+			(trChipReset == TRIGGER_RESET_CHIP_DEAD))
+#else
+
+		if (kalIsChipDead(prGlueInfo, u4Register, pu4Value))
+#endif
+		{
 			/* Don't printk log when resetting */
 			if (!wlanIsChipNoAck(prAdapter)) {
 				DBGLOG(HAL, ERROR,

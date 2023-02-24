@@ -424,7 +424,18 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 			pr_debug("USBIF & STAND_HOST skip current check\n");
 		else {
 			if (info->sw_jeita.sm == TEMP_T0_TO_T1) {
-				pdata->charging_current_limit = info->data.temp_t0_charging_current_limit;
+				if (info->data.temp_t0_charging_current_limit <
+					pdata->charging_current_limit) {
+					pdata->charging_current_limit =
+						info->data.temp_t0_charging_current_limit;
+				}
+			}
+			if (info->sw_jeita.sm == TEMP_T3_TO_T4) {
+				if (info->data.temp_t3_charging_current_limit <
+					pdata->charging_current_limit) {
+					pdata->charging_current_limit =
+						info->data.temp_t3_charging_current_limit;
+				}
 			}
 		}
 	}
@@ -557,7 +568,8 @@ static void swchg_select_cv(struct charger_manager *info)
 		}
 
 	/* dynamic cv*/
-	constant_voltage = info->data.battery_cv;
+	constant_voltage = mtk_get_battery_cv(info);
+
 	mtk_get_dynamic_cv(info, &constant_voltage);
 
 	charger_dev_set_constant_voltage(info->chg1_dev, constant_voltage);

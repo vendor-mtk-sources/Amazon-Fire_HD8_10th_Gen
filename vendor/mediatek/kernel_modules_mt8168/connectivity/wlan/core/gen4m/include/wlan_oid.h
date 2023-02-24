@@ -624,6 +624,17 @@ struct LINK_SPEED_EX_ {
 	uint8_t ucIsLQ0Rdy;
 };
 
+#if CFG_SUPPORT_RSSI_STATISTICS
+enum ENUM_PARAM_AIS_STATE {
+	PARAM_AIS_STATE_INIT,
+	PARAM_AIS_STATE_CONNECTING,
+	PARAM_AIS_STATE_CONNECTED,
+	PARAM_AIS_STATE_DISCONNECTED,
+	/* for following MSDN re-association behavior */
+	PARAM_AIS_STATE_END
+};
+#endif
+
 struct PARAM_LINK_SPEED_EX {
 	struct LINK_SPEED_EX_ rLq[BSSID_NUM];
 };
@@ -2234,6 +2245,12 @@ struct PARAM_HW_MIB_INFO {
 };
 #endif
 
+#if CFG_SUPPORT_RSSI_STATISTICS
+struct PARAM_RX_TX_COUNT {
+	uint8_t	ucBssIndex;
+	uint8_t	ucReserved;
+};
+#endif
 
 /*--------------------------------------------------------------*/
 /*! \brief For Fixed Rate Configuration (Registry)              */
@@ -4213,4 +4230,10 @@ wlanoidQueryAntSwitchData(IN struct ADAPTER *prAdapter,
 		 IN uint32_t u4QueryBufferLen,
 		 OUT uint32_t *pu4QueryInfoLen);
 
+#if CFG_SUPPORT_RSSI_STATISTICS
+uint32_t
+wlanoidQueryRssiStatistics(IN struct ADAPTER *prAdapter,
+		 OUT void *pvQueryBuffer, IN uint32_t u4QueryBufferLen,
+		 OUT uint32_t *pu4QueryInfoLen);
+#endif
 #endif /* _WLAN_OID_H */
